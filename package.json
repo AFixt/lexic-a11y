@@ -43,8 +43,7 @@
     "check:all": "npm-run-all -s check test build dupes size license:check security:audit security:secrets",
     "ci": "npm run check:all",
     "prepare": "husky",
-    "example": "parcel serve examples/index.html --open",
-    "codesandbox": "parcel serve sandbox.html",
+    "example": "vite --open /examples/index.html",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"
   },

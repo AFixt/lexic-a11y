@@ -12,7 +12,9 @@ export default defineConfig({
   },
   esbuild: {
     loader: 'jsx',
-    include: /src\/.*\.jsx?$/,
+    // Treat .js/.jsx in both the library source and the examples as JSX so the
+    // example can import straight from src/ with no build step.
+    include: /(?:src|examples)\/.*\.jsx?$/,
     exclude: [],
   },
   optimizeDeps: {
