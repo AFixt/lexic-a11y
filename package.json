@@ -1,6 +1,6 @@
 {
   "name": "@afixt/lexic-a11y",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A fully featured, accessible, and internationalized rich text editor built with React and Lexical",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
