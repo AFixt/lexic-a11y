@@ -219,26 +219,22 @@ This will launch the application in development mode. Open
 
 1. Running the Example Demo:
 
-The repository includes a simple example implementation that showcases how to
-use the editor component:
+The repository includes a feature-tour example in `examples/` that imports the
+editor straight from `src/` (no build step required) and seeds it with sample
+content exercising every block type — headings, blockquote, lists, a table with
+a header row, an image with alt text, inline and block code, and a horizontal
+rule. It also surfaces a "Try this" panel of keyboard shortcuts and Markdown
+triggers, and the live serialized output.
 
 ```bash
-# First build the library
-npm run build
-
-# Then run the example
 npm run example
 ```
 
-This will start a development server with the example at
-<http://localhost:1234>. The example demonstrates a basic integration of the
-editor component and displays the generated HTML output.
-
-You can also view the demo directly with:
-
-```bash
-npm run build && npm run example
-```
+This starts the Vite dev server and opens the example at
+<http://localhost:4001/examples/index.html>. Because it imports from `src/`,
+your edits to the source are reflected immediately with hot reloading — there is
+no stale pre-built bundle to rebuild. See
+[`examples/README.md`](examples/README.md) for details.
 
 ### Try it on CodeSandbox
 

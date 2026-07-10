@@ -1,0 +1,121 @@
+/* example.css — layout for the feature-tour example only (not shipped). */
+
+.example-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.example-page header p {
+  color: #444;
+}
+
+.example-hint {
+  margin-top: 12px;
+  font-size: 0.95rem;
+  color: #444;
+}
+
+.output-format-control {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 16px 0;
+}
+
+.output-format-control legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
+.try-this {
+  margin-top: 32px;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #f8f9fb;
+}
+
+.try-this-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.kv-intro {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.kv-list {
+  margin: 0;
+}
+
+.kv-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 4px 0;
+  border-top: 1px solid #ececf0;
+}
+
+.kv-row:first-child {
+  border-top: none;
+}
+
+.kv-row dt {
+  flex: 0 0 auto;
+  min-width: 150px;
+  margin: 0;
+}
+
+.kv-row dd {
+  margin: 0;
+  color: #333;
+}
+
+.try-this kbd,
+.try-this code {
+  font-size: 0.85rem;
+}
+
+.try-this kbd {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.try-this code {
+  background-color: #eef0f5;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.paste-demo {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.output-container {
+  margin-top: 32px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+}
+
+.html-output {
+  overflow-x: auto;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

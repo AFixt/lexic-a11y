@@ -1,6 +1,6 @@
 {
   "name": "@afixt/lexic-a11y",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A fully featured, accessible, and internationalized rich text editor built with React and Lexical",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -43,8 +43,7 @@
     "check:all": "npm-run-all -s check test build dupes size license:check security:audit security:secrets",
     "ci": "npm run check:all",
     "prepare": "husky",
-    "example": "parcel serve examples/index.html --open",
-    "codesandbox": "parcel serve sandbox.html",
+    "example": "vite --open /examples/index.html",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"
   },
