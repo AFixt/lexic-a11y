@@ -193,22 +193,6 @@
   color: var(--primary-dark);
 }
 
-@media screen and (prefers-reduced-motion: reduce) {
-  .close-docs-button {
-    background: transparent;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: var(--text-light);
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: none;
-  }
-}
-
 .close-docs-button {
   background: transparent;
   border: none;
@@ -352,23 +336,6 @@ kbd {
   background-color: var(--primary-light);
   border-color: var(--primary-color);
   color: var(--primary-dark);
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-  .editor-toolbar button {
-    height: 36px;
-    min-width: 36px;
-    background-color: var(--background);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 0 10px;
-    transition: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 }
 
 .editor-toolbar button {
@@ -574,15 +541,6 @@ kbd {
   font-size: 14px;
 }
 
-@media screen and (prefers-reduced-motion: reduce) {
-  .form-group input {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    font-size: 14px;
-    transition: none;
-  }
-}
-
 .form-group input {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
@@ -618,12 +576,6 @@ kbd {
   margin: 0;
   color: var(--text-light);
   font-size: 14px;
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-  .upload-button {
-    transition: none;
-  }
 }
 
 .upload-button {
@@ -680,50 +632,13 @@ kbd {
   margin-top: 10px;
 }
 
-@media screen and (prefers-reduced-motion: reduce) {
-  .cancel-button,
-  .insert-button {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: none;
-  }
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-  .cancel-button,
-  .insert-button {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: none;
-  }
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-  .cancel-button,
-  .insert-button {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: none;
-  }
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-  .cancel-button,
-  .insert-button {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: none;
-  }
-}
-
+/* Reduced motion for these two is handled by the consolidated block at the end
+   of this file. The rule only matches a single selector, so it cannot see the
+   grouped `.cancel-button, .insert-button` override there — and its autofix
+   injects a copy of this rule *above* itself, which is dead code (a media query
+   adds no specificity, so this rule would still win on source order). Disabled
+   here to stop `stylelint --fix` re-creating that. */
+/* stylelint-disable-next-line a11y/media-prefers-reduced-motion */
 .cancel-button,
 .insert-button {
   padding: 8px 16px;
@@ -855,4 +770,58 @@ kbd {
   border: 1px solid var(--border-color);
   overflow-x: auto;
   white-space: pre;
+}
+
+/*
+ * Honour the user's reduced-motion preference.
+ *
+ * Every animated rule in this file transitions via `var(--transition)`, so
+ * neutralising the variable here disables all of them at once — and covers any
+ * rule added later without needing a matching per-selector override.
+ *
+ * It lives at the end of the file deliberately. A media query adds no
+ * specificity, so source order decides the cascade. The per-selector
+ * `transition: none` blocks this replaces were each placed immediately *before*
+ * the rule they were meant to override, so the base rule's
+ * `transition: var(--transition)` always won and the preference was silently
+ * ignored.
+ */
+@media screen and (prefers-reduced-motion: reduce) {
+  :root {
+    --transition: none;
+  }
+
+  /* Suppress the toolbar buttons' decorative lift on hover/focus/active. */
+  .editor-toolbar button:hover,
+  .editor-toolbar button:focus,
+  .editor-toolbar button:active {
+    transform: none;
+  }
+
+  /*
+   * Redundant given the `--transition` override above, but `a11y/media-prefers-
+   * reduced-motion` matches selectors literally and cannot see through the
+   * custom property. Listing them keeps the rule active for any future
+   * hard-coded transition instead of switching it off project-wide.
+   */
+  .close-docs-button {
+    transition: none;
+  }
+
+  .editor-toolbar button {
+    transition: none;
+  }
+
+  .form-group input {
+    transition: none;
+  }
+
+  .upload-button {
+    transition: none;
+  }
+
+  .cancel-button,
+  .insert-button {
+    transition: none;
+  }
 }
