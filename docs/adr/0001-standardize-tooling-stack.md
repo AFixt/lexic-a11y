@@ -20,7 +20,7 @@ We adopt the tooling listed in issue #14 with the following scope constraints:
 - **No TypeScript migration** — the project stays on JavaScript. TS-specific
   rules and `tsconfig.json` are out of scope.
 - **No test framework migration** — Jest stays. Vitest migration and
-  `@afix/a11y-assert` integration are deferred.
+  `@afixt/a11y-assert` integration are deferred.
 - **Express / SEO / SSR tooling is skipped** — this is a React library, not an
   application. Items like `helmet`, `zod`, `react-helmet-async`, `llms.txt`,
   `schema-dts`, and sitemap generation do not apply.
@@ -38,7 +38,7 @@ We adopt the tooling listed in issue #14 with the following scope constraints:
 - **Security CVE scans (osv-scanner, semgrep) run manually or on schedule**, not
   as part of `check:all`. The existing dev-only vulnerabilities in Parcel's
   transitive dependencies would otherwise block every push.
-- **`@afix/a11y-assert`, Lighthouse CI, Playwright, React Compiler** are
+- **`@afixt/a11y-assert`, Lighthouse CI, Playwright, React Compiler** are
   deferred. The first is testing-related (out of scope); the others are
   application concerns that do not fit a library.
 
@@ -75,13 +75,27 @@ We adopt the tooling listed in issue #14 with the following scope constraints:
   `lychee`). The pre-commit hook degrades gracefully if `trufflehog` is absent
   but logs a warning.
 
+### Follow-up status (as of 2026-07-19)
+
+This section records what has since changed; the decision text above is left as
+the snapshot it was at the time of the decision.
+
+- **Playwright and `@afixt/a11y-assert` are no longer deferred.** Both were
+  adopted afterward — a Playwright E2E suite with an axe scan
+  (`npm run test:e2e`, `.github/workflows/e2e.yml`) and component-level
+  accessibility assertions in `src/tests/accessibility.test.js`. Vitest,
+  Lighthouse CI, and React Compiler remain deferred.
+- The TypeScript decision was reaffirmed and recorded separately in
+  [ADR 0002](./0002-remain-on-javascript.md).
+- `size-limit` budgets have since been raised from 100 KB to 105 KB.
+
 ### Follow-ups
 
 - Refactor `ToolbarPlugin.js` to bring it under the complexity thresholds.
 - Fix the CSS a11y warnings (font-size thresholds, prefers-reduced-motion, focus
   states on hover selectors).
 - Replace `role="dialog"`/`role="presentation"` JSX with native elements.
-- Consider migrating tests to Vitest and integrating `@afix/a11y-assert` at the
+- Consider migrating tests to Vitest and integrating `@afixt/a11y-assert` at the
   component level once the above refactors land.
 
 ## References

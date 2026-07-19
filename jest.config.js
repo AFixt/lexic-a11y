@@ -4,7 +4,7 @@ module.exports = {
   // Playwright owns everything under e2e/
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/'],
   moduleNameMapper: {
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(css|less|scss|sass)$': '<rootDir>/jest.styleMock.js',
   },
   transform: {
     '^.+\\.(js|jsx)$': 'babel-jest',

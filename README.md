@@ -18,16 +18,26 @@ editing more accessible to all users.
 ## What It Does
 
 - Rich Text Editing: Offers essential text formatting including bold, italic,
-  underline, strikethrough, and a full range of headings (H1–H6).
+  underline, strikethrough, inline code, and a full range of headings (H1–H6).
+- Block Content: Blockquotes, fenced code blocks, horizontal rules, tables with
+  a real header row, and images that require alt text (or an explicit
+  "decorative" opt-out).
 - List Support: Create and manage ordered and unordered lists with proper
   semantic structure.
 - Link Management: Insert and edit hyperlinks with an accessible dialog
-  interface.
+  interface, with URL scheme validation that rejects unsafe protocols.
+- Markdown Shortcuts: Type `#`, `>`, `-`, `1.`, `**bold**`, and friends to
+  format as you go; content can also be serialized to Markdown.
+- Live Document Outline: A running list of the document's headings, with
+  WCAG-aligned warnings for skipped heading levels and multiple H1s.
+- Word and Character Count: Debounced counts surfaced in a polite live region.
+- Paste Sanitization: Pasted markup from Word or Google Docs is cleaned to
+  semantic HTML; Ctrl/Cmd+Shift+V pastes as plain text.
 - Keyboard Shortcuts: Implements a variety of keyboard shortcuts for quick
   formatting actions (e.g., Ctrl/Cmd+B for bold, Ctrl/Cmd+Alt+1 for Heading 1)
   and efficient navigation.
 - Documentation: Provides an overlay with available keyboard shortcuts and usage
-  tips.
+  tips (Ctrl/Cmd+D).
 - Internationalization (i18n): Integrated with react-i18next to allow
   localization of toolbar labels and prompts, making it adaptable for
   multi-language projects.
@@ -38,35 +48,63 @@ editing more accessible to all users.
 ## Features
 
 - Core Formatting Options:
-  - Text Styling: Bold, Italic, Underline, Strikethrough.
+  - Text Styling: Bold, Italic, Underline, Strikethrough, inline code.
   - Headings: H1 through H6 with both toolbar buttons and keyboard shortcuts.
 - List Formatting:
   - Ordered Lists: Create numbered lists with proper semantic structure.
   - Unordered Lists: Create bullet lists with proper semantic structure.
 - Content Elements:
   - Links: Insert and edit hyperlinks with an accessible dialog.
-- Keyboard Shortcuts:
-  - Basic formatting: Ctrl/Cmd+B for bold, Ctrl/Cmd+I for italic, Ctrl/Cmd+U for
-    underline.
-  - Heading shortcuts: Ctrl/Cmd+Alt+[1–6] for H1–H6.
-  - List shortcuts: Ctrl/Cmd+Shift+7 for ordered lists, Ctrl/Cmd+Shift+8 for
-    unordered lists.
-  - Link shortcut: Ctrl/Cmd+K to insert or edit links.
-- Documentation:
-  - Keyboard Shortcuts Help: Overlay displaying all available keyboard commands.
+  - Images: Insert by URL, or via the optional `onImageUpload` handler with a
+    drag-and-drop zone and file picker. Alt text is required before the image
+    can be inserted, unless it is explicitly marked decorative (`alt=""`).
+  - Tables: Insert with a header row; exported with `scope="col"`.
+  - Blockquotes, fenced code blocks, and horizontal rules.
+- Output Formats:
+  - Clean HTML (utility classes and Lexical's sizing markup stripped) or
+    Markdown, selected with the `outputFormat` prop.
 - Internationalization (i18n):
   - Built-in support using react-i18next.
   - Easy to add new languages and localize toolbar and prompt texts.
 - Accessibility (WCAG Compliant):
   - ARIA roles and labels throughout the UI.
-  - Fully keyboard accessible.
+  - Fully keyboard accessible, including a roving-tabindex toolbar.
   - Semantic HTML output for screen readers and other assistive technologies.
+
+### Keyboard shortcuts
+
+On macOS use <kbd>Cmd</kbd> wherever <kbd>Ctrl</kbd> is shown. The same list is
+available in-app from the help overlay (<kbd>Ctrl</kbd>+<kbd>D</kbd>).
+
+| Shortcut             | Action                    |
+| -------------------- | ------------------------- |
+| `Ctrl+B` / `I` / `U` | Bold / Italic / Underline |
+| `Ctrl+Shift+X`       | Strikethrough             |
+| `Ctrl+E`             | Inline code               |
+| `Ctrl+Shift+E`       | Code block                |
+| `Ctrl+\`             | Clear formatting          |
+| `Ctrl+Alt+[1–6]`     | Heading 1–6               |
+| `Ctrl+Shift+7`       | Ordered (numbered) list   |
+| `Ctrl+Shift+8`       | Unordered (bullet) list   |
+| `Ctrl+Shift+Q`       | Blockquote                |
+| `Ctrl+K`             | Insert / edit link        |
+| `Ctrl+Shift+M`       | Insert image              |
+| `Ctrl+Shift+L`       | Insert table              |
+| `Ctrl+Shift+-`       | Horizontal rule           |
+| `Ctrl+Shift+V`       | Paste as plain text       |
+| `Ctrl+D`             | Toggle the help overlay   |
+| `Escape`             | Close the open dialog     |
+
+The toolbar is a single tab stop with arrow-key roving focus; `Home` and `End`
+jump to the first and last control.
 
 ## Installation
 
 ### Prerequisites
 
-- Node.js (v20+; version pinned in `.nvmrc` / `.node-version`)
+- Node.js — `package.json` requires v20+, but the repo pins **v22** in `.nvmrc`
+  / `.node-version` (and CI runs `lts/*`). Use 22: the `@afixt/a11y-assert` test
+  dependency declares `engines.node >= 22`.
 - npm v10+ (enforced via `engine-strict=true` in `.npmrc`)
 - React (v16.8+, v17.0.0+, or v18.0.0+ for Hooks support)
 - Homebrew (macOS/Linux) — used by the bootstrap script to install security
@@ -77,7 +115,7 @@ editing more accessible to all users.
 1. Clone the Repository:
 
 ```bash
-git clone https://github.com/eventably/lexic-a11y.git
+git clone https://github.com/AFixt/lexic-a11y.git
 cd lexic-a11y
 ```
 
@@ -152,16 +190,33 @@ export default function App() {
 | `onImageUpload`   | `(file: File) => Promise<string>` | —        | Optional. When provided, the Insert Image dialog gains a drag-and-drop zone and file picker; the handler receives the chosen `File` and must resolve to the URL to embed.                                               |
 | `initialValue`    | `string`                          | —        | Optional trusted HTML used to seed the editor once, on mount (e.g. a saved draft or template). Images, tables, and code blocks are preserved. Later changes to this prop are ignored so user edits are never clobbered. |
 
+#### TypeScript
+
+The package ships hand-maintained declarations at `dist/index.d.ts` (the source
+is JavaScript — see [ADR 0002](./docs/adr/0002-remain-on-javascript.md)). No
+`@types/...` package is needed:
+
+```typescript
+import Editor, { ToolbarPlugin, i18n } from '@afixt/lexic-a11y';
+import type { EditorProps, OutputFormat } from '@afixt/lexic-a11y';
+```
+
+`npm run types:check` compiles the declarations under `strict`, and
+`src/tests/public-api.test.js` fails if they drift from the library's real
+exports.
+
 #### 2. i18n Setup
 
-Make sure your project wraps the application with an i18n provider:
+The package exports its configured `i18next` instance as a **named** export
+alongside the default `Editor` export. Wrap your application with an i18n
+provider:
 
 ```javascript
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { I18nextProvider } from 'react-i18next';
-import i18n from '@afixt/lexic-a11y/dist/i18n';
+import { i18n } from '@afixt/lexic-a11y';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -178,19 +233,23 @@ styling for the toolbar and editor components.
 
 ### Customizing the Editor
 
-- **Theme**: The editor accepts a theme object via the configuration in
-  Editor.js that lets you define class names for various parts of the editor.
+- **Theme**: Lexical class names for each node type are defined in the `theme`
+  object in `src/components/Editor.js`. It is not currently exposed as a prop —
+  change it in source (or fork) to rename the classes.
 - **Custom Styling**: Customize colors, fonts, and spacing by overriding the CSS
-  classes to match your project's design guidelines.
+  classes from `dist/styles.css` (built from `src/styles/Editor.css`) to match
+  your project's design guidelines.
 
 ### Extending the Editor
 
-- **Keyboard Shortcuts**: The shortcuts are registered in ToolbarPlugin.js using
-  event listeners. You can modify the key combinations or add new ones as
-  needed.
-- **Internationalization**: Update the i18n.js file to add additional languages
-  or modify existing translations. Use the useTranslation hook within any
-  component to localize additional UI elements.
+- **Keyboard Shortcuts**: The shortcuts are registered in
+  `src/components/ToolbarPlugin.js` with a document-level `keydown` listener.
+  You can modify the key combinations or add new ones as needed. (Bold, italic,
+  and underline are deliberately left to Lexical's `RichTextPlugin` — handling
+  them again there applies the format twice.)
+- **Internationalization**: Update `src/utils/i18n.js` to add additional
+  languages or modify existing translations. Use the `useTranslation` hook
+  within any component to localize additional UI elements.
 - **Adding Features**: The editor ships with images (insert by URL or via the
   optional `onImageUpload` handler), horizontal rules, and tables built in. To
   add further formatting options, follow Lexical's modular architecture to
@@ -208,8 +267,8 @@ To run the editor in a development environment:
 npm start
 ```
 
-This will launch the application in development mode. Open
-<http://localhost:3000> to view it in your browser.
+This launches the Vite dev server (configured in `vite.config.js`) and opens
+<http://localhost:4001> automatically.
 
 1. Making Changes:
 
@@ -241,10 +300,14 @@ no stale pre-built bundle to rebuild. See
 You can also try the editor directly on CodeSandbox without installing anything
 locally:
 
-[![Edit lexic-a11y](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/sandbox/github/eventably/lexic-a11y/tree/develop/sandbox)
+[![Edit lexic-a11y](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/sandbox/github/AFixt/lexic-a11y/tree/develop/sandbox)
 
-This opens our dedicated sandbox demo where you can interact with the editor and
-see how it works.
+This opens the `sandbox/` demo. Note that it is a **deliberately simplified,
+standalone** rebuild of the editor (bold/italic/underline/strikethrough, H1–H3,
+lists) rather than the packaged component — it exists so CodeSandbox can run
+without building the library. For the full feature set (tables, images, code
+blocks, horizontal rules, the link dialog, and every keyboard shortcut), run
+`npm run example` locally.
 
 ### End-to-end tests
 
@@ -296,25 +359,27 @@ We welcome contributions from the community! If you'd like to contribute:
 
 ### Available scripts
 
-| Script                  | Purpose                                       |
-| ----------------------- | --------------------------------------------- |
-| `npm start`             | Start Vite dev server (demo)                  |
-| `npm run build`         | Build the library (Rollup → `dist/`)          |
-| `npm run build:analyze` | Build with bundle visualizer report           |
-| `npm test`              | Run the Jest test suite                       |
-| `npm run test:e2e`      | Run the Playwright E2E suite                  |
-| `npm run lint`          | Run ESLint                                    |
-| `npm run lint:css`      | Run Stylelint                                 |
-| `npm run lint:md`       | Run markdownlint-cli2                         |
-| `npm run format`        | Run Prettier (write mode)                     |
-| `npm run format:check`  | Run Prettier in check mode                    |
-| `npm run dupes`         | Run jscpd duplication check                   |
-| `npm run size`          | Enforce `size-limit` budgets                  |
-| `npm run links`         | Check markdown links with `lychee`            |
-| `npm run security`      | Run npm audit + OSV + Semgrep + trufflehog    |
-| `npm run license:check` | Verify production dependency licenses         |
-| `npm run check`         | Lint + stylelint + markdown + format:check    |
-| `npm run check:all`     | Full local gate (used by the `pre-push` hook) |
+| Script                  | Purpose                                        |
+| ----------------------- | ---------------------------------------------- |
+| `npm start`             | Start Vite dev server (demo, port 4001)        |
+| `npm run example`       | Open the feature-tour example                  |
+| `npm run build`         | Build the library (Rollup → `dist/`)           |
+| `npm run build:analyze` | Build with bundle visualizer report            |
+| `npm test`              | Run the Jest test suite                        |
+| `npm run test:e2e`      | Run the Playwright E2E suite                   |
+| `npm run lint`          | Run ESLint                                     |
+| `npm run lint:css`      | Run Stylelint                                  |
+| `npm run lint:md`       | Run markdownlint-cli2                          |
+| `npm run types:check`   | Typecheck the published `.d.ts` under `strict` |
+| `npm run format`        | Run Prettier (write mode)                      |
+| `npm run format:check`  | Run Prettier in check mode                     |
+| `npm run dupes`         | Run jscpd duplication check                    |
+| `npm run size`          | Enforce `size-limit` budgets                   |
+| `npm run links`         | Check markdown links with `lychee`             |
+| `npm run security`      | Run npm audit + OSV + Semgrep + trufflehog     |
+| `npm run license:check` | Verify production dependency licenses          |
+| `npm run check`         | Lint + stylelint + markdown + format + types   |
+| `npm run check:all`     | Full local gate (used by the `pre-push` hook)  |
 
 > **Accessibility test tooling:** `npm test` runs automated WCAG assertions via
 > [`@afixt/a11y-assert`](https://www.npmjs.com/package/@afixt/a11y-assert), a
