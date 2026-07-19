@@ -24,21 +24,18 @@ accessibility finding.
 Toolbar toggle state is asserted through `aria-pressed` so each use case also
 verifies the control semantics, not just the visual result.
 
-## Assumed accessible names
+## Accessible names these depend on
 
-These use cases address controls by accessible names that are introduced by two
-other open PRs, which fix labels that previously rendered as raw i18n keys.
-**Merge those PRs before this one** so the names resolve:
+Use cases address controls by accessible name, all defined in
+`src/utils/i18n.js`:
 
-- The editor surface: `Editor content` — `editorContent` aria-label added in PR
-  #50 (`feature/18-e2e-tests`).
+- `Editor content` — the editor surface's `aria-label` (`editorContent`).
 - `Bullet List`, `Numbered List`, `Show Help` — `bulletList` / `numberedList` /
-  `showHelp` translations added in PR #50 (`feature/18-e2e-tests`).
-- `Insert Link` — the link button's aria-label, renamed from the uninformative
-  `Link` to `insertLink` in PR #51 (`feature/8-a11y-assert`).
+  `showHelp`.
+- `Insert Link` — the link button's `aria-label` (`insertLink`).
 
-Once those PRs land on `develop`, a use case that still fails to locate one of
-these controls means the accessible name has regressed.
+These all resolve on `develop` today. A use case that fails to locate one of
+these controls therefore means the accessible name has regressed.
 
 ## Running them
 
@@ -49,7 +46,8 @@ execute the use cases (Node >= 22):
 npm install --no-save @afixt/usecase-runner @playwright/test
 npx playwright install chromium
 
-# Start the demo app in another shell
+# Start the demo app in another shell — it must be reachable at
+# http://localhost:4001, the `start_location` every use case declares
 npm start
 
 # Validate the YAML

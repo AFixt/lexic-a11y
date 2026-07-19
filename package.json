@@ -26,6 +26,7 @@
     "lint:css:fix": "stylelint 'src/**/*.css' --fix",
     "lint:md": "markdownlint-cli2 '**/*.md' '#node_modules' '#dist' '#build' '#coverage'",
     "lint:md:fix": "markdownlint-cli2 --fix '**/*.md' '#node_modules' '#dist' '#build' '#coverage'",
+    "types:check": "tsc --noEmit --strict --skipLibCheck --moduleResolution bundler --module esnext --target es2020 --jsx react-jsx src/index.d.ts",
     "dupes": "jscpd . --config .jscpd.json",
     "dupes:ci": "jscpd . --config .jscpd.json --threshold 5",
     "format": "prettier --write .",
@@ -39,7 +40,7 @@
     "security": "npm-run-all -p security:audit security:osv security:semgrep security:secrets",
     "license:check": "license-checker-rseidelsohn --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense;Python-2.0;WTFPL;BlueOak-1.0.0' --excludePrivatePackages --summary",
     "license:report": "license-checker-rseidelsohn --production --csv --out reports/licenses.csv",
-    "check": "npm-run-all -p lint lint:css lint:md format:check",
+    "check": "npm-run-all -p lint lint:css lint:md format:check types:check",
     "check:all": "npm-run-all -s check test build dupes size license:check security:audit security:secrets",
     "ci": "npm run check:all",
     "prepare": "husky",
@@ -56,8 +57,19 @@
     "accessibility",
     "i18n"
   ],
-  "author": "",
+  "author": "Karl Groves <karlgroves@gmail.com>",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AFixt/lexic-a11y.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AFixt/lexic-a11y/issues"
+  },
+  "homepage": "https://github.com/AFixt/lexic-a11y#readme",
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
@@ -76,7 +88,6 @@
     "@lexical/rich-text": "^0.12.0",
     "@lexical/selection": "^0.12.6",
     "@lexical/table": "^0.12.0",
-    "ajv": "^8.18.0",
     "i18next": "^23.0.0",
     "lexical": "^0.12.0",
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
@@ -101,6 +112,7 @@
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.0.0",
+    "@types/react": "18.3.26",
     "@vitejs/plugin-react": "^5.2.0",
     "babel-jest": "^29.0.0",
     "eslint": "9.39.4",
