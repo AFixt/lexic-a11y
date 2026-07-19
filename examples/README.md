@@ -20,7 +20,7 @@ This starts the Vite dev server and opens
 The editor is seeded on mount (via the `initialValue` prop) with content that
 exercises every block type:
 
-- Headings (`h1`–`h3`) — feeding the live document outline
+- Headings (one `h1` plus several `h2`s) — feeding the live document outline
 - Blockquote
 - Ordered and unordered lists
 - A table with a real header row (exported with `scope="col"`)

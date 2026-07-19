@@ -114,3 +114,64 @@ jobs:
         run: npm test
         env:
           CI: true
+
+  peer-compat:
+    # React is a peer dependency, so the version in devDependencies is only one
+    # point in the supported range. Build and test against each major we claim
+    # to support, so widening the range stays honest.
+    name: React ${{ matrix.react }} peer compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        react: ["18", "19"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install React ${{ matrix.react }}
+        run: npm install --no-save react@${{ matrix.react }} react-dom@${{ matrix.react }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Assert a single React copy is installed
+        # The bug this job guards against (AFixt/afixt-investigator#1053) was a
+        # DUPLICATE React, not a missing one — a nested copy silently breaks
+        # hooks in consumers while the build and tests here still pass. If
+        # react ever returns to `dependencies`, this step fails with 2.
+        run: |
+          npm ls react --all 2>&1 | head -30
+          npm ls react --json --all 2>/dev/null | node -e '
+            const data = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            const found = new Set();
+            (function walk(node) {
+              for (const [name, child] of Object.entries(node.dependencies || {})) {
+                if (name === "react" && child.version) found.add(child.version);
+                walk(child);
+              }
+            })(data);
+            console.log("react versions in tree:", [...found].join(", ") || "(none)");
+            if (found.size !== 1) {
+              console.error(`::error::Expected exactly 1 React version, found ${found.size}`);
+              process.exit(1);
+            }
+          '
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+        env:
+          CI: true
