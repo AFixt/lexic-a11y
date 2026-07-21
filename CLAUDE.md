@@ -26,8 +26,8 @@ code in this repository.
 
 ## Tooling
 
-- ESLint flat config in `eslint.config.mjs` — includes react, jsx-a11y, sonarjs,
-  security, unicorn, import-x, promise, n, jsdoc, no-secrets. Structural rules
+- ESLint flat config in `eslint.config.mjs` — includes react, sonarjs, security,
+  unicorn, import-x, promise, n, jsdoc, no-secrets. Structural rules
   (complexity, max-depth, cognitive-complexity) are **warnings** so pre-existing
   code smell doesn't block new work; the errors tier is reserved for correctness
   and security.
@@ -72,8 +72,19 @@ This project follows **Git Flow**. You MUST adhere to this branching strategy:
 - Ensure proper aria-\* attributes on interactive elements
 - Follow i18n patterns using react-i18next's useTranslation hook
 - Always provide alt text for images and proper ARIA attributes
-- Run ESLint with jsx-a11y plugin to catch accessibility issues
 
 ## Reviewing PRs
 
 Whenever I ask to review a PR (pull request), use the `pr-review` skill.
+
+## axe-core is banned
+
+**`axe-core` must never be used in this project — directly or transitively.**
+
+- Do not add `axe-core` or any `@axe-core/*` package.
+- Do not add any dependency that pulls in `axe-core` transitively — this
+  includes `eslint-plugin-jsx-a11y`, `lighthouse` / `@lhci/cli`, `pa11y`,
+  `@storybook/addon-a11y`, `jest-axe`, `cypress-axe`, and similar.
+- Before adding any new dependency, verify with `npm ls axe-core` that it does
+  not introduce axe-core into the tree. If it does, do not add it.
+- Use `@afixt/a11y-assert` for accessibility checks instead.

@@ -312,11 +312,9 @@ blocks, horizontal rules, the link dialog, and every keyboard shortcut), run
 ### End-to-end tests
 
 The E2E suite runs the demo app in a real browser with
-[Playwright](https://playwright.dev/) and includes an
-[axe](https://github.com/dequelabs/axe-core) accessibility scan. A rich-text
-editor's correctness is largely real-browser behavior (keyboard handling,
-selection, contenteditable quirks, ARIA state), which Jest unit tests cannot
-exercise.
+[Playwright](https://playwright.dev/). A rich-text editor's correctness is
+largely real-browser behavior (keyboard handling, selection, contenteditable
+quirks, ARIA state), which Jest unit tests cannot exercise.
 
 ```bash
 # One-time: install the Playwright browser
@@ -330,9 +328,8 @@ npm run test:e2e:headed
 ```
 
 The suite covers typing, formatting (toolbar and keyboard), lists, the link
-dialog, keyboard navigation, ARIA state assertions, and an axe scan that fails
-on serious/critical violations. CI runs it on pull requests via
-`.github/workflows/e2e.yml`.
+dialog, keyboard navigation, and ARIA state assertions. CI runs it on pull
+requests via `.github/workflows/e2e.yml`.
 
 ### Building for Production
 
