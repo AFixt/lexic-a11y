@@ -51,6 +51,21 @@ const renderWithI18n = (component) => {
   return render(<I18nextProvider i18n={i18n}>{component}</I18nextProvider>);
 };
 
+// Every ARIA landmark role. The panel is embedded inside a single form control,
+// so it must contribute none of them to whatever page hosts the editor.
+const LANDMARK_ROLES = [
+  'banner',
+  'complementary',
+  'contentinfo',
+  'form',
+  'main',
+  'navigation',
+  'region',
+  'search',
+];
+
+const landmarks = () => LANDMARK_ROLES.flatMap((role) => screen.queryAllByRole(role));
+
 const simulateUpdate = (headings) => {
   mockHeadings = headings;
   act(() => {
@@ -72,17 +87,26 @@ describe('HeadingOutlinePlugin', () => {
     expect(screen.getByText(/No headings yet/)).toBeInTheDocument();
   });
 
-  it('is a labelled region and contributes no heading to the host page', () => {
+  it('contributes no heading and no landmark to the host page', () => {
     mockHeadings = [makeHeading('1', 'h1', 'Title')];
 
     renderWithI18n(<HeadingOutlinePlugin />);
 
-    expect(screen.getByRole('region', { name: 'Document Outline' })).toBeInTheDocument();
-    // The panel belongs to a single form control, so its title must not land in
-    // the host page's heading outline (issue #88).
+    // The panel belongs to a single form control, so it must not appear in the
+    // host page's heading outline or its landmark structure (issue #88).
     expect(screen.queryAllByRole('heading')).toHaveLength(0);
-    // ...but the title is still visible as text
+    expect(landmarks()).toHaveLength(0);
+    // ...while the title is still visible, and the outline still identifiable
     expect(screen.getByText('Document Outline')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Document Outline' })).toBeInTheDocument();
+  });
+
+  it('contributes no landmark in its empty state either', () => {
+    renderWithI18n(<HeadingOutlinePlugin />);
+
+    // The list is absent with no headings, so this covers the other branch:
+    // the panel's landmark count must not depend on the document's content.
+    expect(landmarks()).toHaveLength(0);
   });
 
   it('renders the outline reflecting the document structure', () => {
@@ -94,8 +118,8 @@ describe('HeadingOutlinePlugin', () => {
 
     renderWithI18n(<HeadingOutlinePlugin />);
 
-    const nav = screen.getByRole('navigation', { name: 'Document Outline' });
-    expect(nav).toBeInTheDocument();
+    const outline = screen.getByRole('list', { name: 'Document Outline' });
+    expect(outline).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /H1 Title/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /H2 Section/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /H3 Subsection/ })).toBeInTheDocument();

@@ -67,11 +67,16 @@ export function HeadingOutlinePlugin() {
     .filter((entry) => entry.message);
 
   return (
-    <section className="editor-outline" aria-label={t('documentOutline')}>
-      {/* Deliberately not a heading: the panel belongs to a single form control,
-          so contributing an <h2> to the host page's heading outline would
-          misrepresent the page structure (issue #88). The section's aria-label
-          already names the region for assistive technology. */}
+    <section className="editor-outline">
+      {/* This panel belongs to a single form control, so it deliberately adds
+          nothing to the host page's document structure — neither a heading nor
+          a landmark (issue #88).
+
+          The <section> is intentionally left unnamed: HTML maps <section> to
+          role="region" only when it has an accessible name, so omitting the
+          label keeps it a generic element instead of a landmark in the host's
+          landmark list. The outline's accessible name lives on the list below,
+          where it names the thing a screen reader user actually lands in. */}
       <div className="editor-outline-title">{t('documentOutline')}</div>
 
       {/* Non-blocking, accessible warnings: announced politely, prefixed with
@@ -95,26 +100,27 @@ export function HeadingOutlinePlugin() {
       {headings.length === 0 ? (
         <p className="editor-outline-empty">{t('outlineEmpty')}</p>
       ) : (
-        <nav aria-label={t('documentOutline')}>
-          <ul className="editor-outline-list">
-            {headings.map((heading) => (
-              <li
-                key={heading.key}
-                className="editor-outline-item"
-                style={{ marginLeft: `${(headingLevel(heading.tag) - 1) * 16}px` }}
+        /* A plain named list, not a <nav>: this navigates the editor's content,
+           not the host document, so it does not earn a navigation landmark in
+           the page it is embedded in. The label keeps the list identifiable. */
+        <ul className="editor-outline-list" aria-label={t('documentOutline')}>
+          {headings.map((heading) => (
+            <li
+              key={heading.key}
+              className="editor-outline-item"
+              style={{ marginLeft: `${(headingLevel(heading.tag) - 1) * 16}px` }}
+            >
+              <button
+                type="button"
+                className="editor-outline-link"
+                onClick={() => navigateToHeading(heading.key)}
               >
-                <button
-                  type="button"
-                  className="editor-outline-link"
-                  onClick={() => navigateToHeading(heading.key)}
-                >
-                  <span className="editor-outline-tag">{heading.tag.toUpperCase()}</span>{' '}
-                  {heading.text || t('outlineUntitled')}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+                <span className="editor-outline-tag">{heading.tag.toUpperCase()}</span>{' '}
+                {heading.text || t('outlineUntitled')}
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );
