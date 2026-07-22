@@ -18,6 +18,9 @@ code in this repository.
 - Analyze bundle: `npm run build:analyze` (writes `reports/bundle-stats.html`)
 - Run tests: `npm test`
 - Run tests with watch: `npm run test:watch`
+- Smoke-test the built bundles: `npm run test:dist` (needs `npm run build` first
+  — it mounts the real `dist/` ESM and CJS artifacts in jsdom, which the source
+  suite cannot do)
 - Lint code: `npm run lint` (JS), `npm run lint:css`, `npm run lint:md`
 - Format: `npm run format`
 - Check bundle size: `npm run size`
@@ -31,6 +34,11 @@ code in this repository.
   (complexity, max-depth, cognitive-complexity) are **warnings** so pre-existing
   code smell doesn't block new work; the errors tier is reserved for correctness
   and security.
+- Babel presets live **only** in `babel.config.js` — never re-declare them in
+  `rollup.config.js`'s `babel()` options. Babel merges same-named presets and
+  the programmatic options win, so repeating `@babel/preset-react` there
+  silently drops `runtime: 'automatic'` and compiles the bundles to a bare
+  `React.createElement` with nothing bound in scope (issue #80).
 - Prettier config in `.prettierrc.json` (note: MD049 in
   `.markdownlint-cli2.jsonc` aligns with Prettier's default underscore
   emphasis).

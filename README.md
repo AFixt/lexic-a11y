@@ -331,6 +331,21 @@ The suite covers typing, formatting (toolbar and keyboard), lists, the link
 dialog, keyboard navigation, and ARIA state assertions. CI runs it on pull
 requests via `.github/workflows/e2e.yml`.
 
+### Built-bundle smoke tests
+
+`npm test` imports from `src/`, so it cannot see a bug introduced by the build
+itself. `npm run test:dist` mounts the real `dist/` artifacts — both the ESM and
+CJS bundles — in jsdom and asserts they render:
+
+```bash
+npm run build      # test:dist needs the artifacts
+npm run test:dist
+```
+
+This guards the class of regression that shipped in v1.1.2, where the bundles
+referenced an unbound global `React` and threw `React is not defined` on mount
+while the source suite stayed green. `npm run check:all` runs it after `build`.
+
 ### Building for Production
 
 Once you are satisfied with your changes, build the package for production:
@@ -363,6 +378,7 @@ We welcome contributions from the community! If you'd like to contribute:
 | `npm run build`         | Build the library (Rollup → `dist/`)           |
 | `npm run build:analyze` | Build with bundle visualizer report            |
 | `npm test`              | Run the Jest test suite                        |
+| `npm run test:dist`     | Smoke-test the built bundles (needs `build`)   |
 | `npm run test:e2e`      | Run the Playwright E2E suite                   |
 | `npm run lint`          | Run ESLint                                     |
 | `npm run lint:css`      | Run Stylelint                                  |
