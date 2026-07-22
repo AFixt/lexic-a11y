@@ -719,9 +719,12 @@ kbd {
   border: 1px solid var(--border-color);
 }
 
+/* Styled to read like the heading it used to be — it is a <div> so the panel
+   does not inject an <h2> into the host page's heading outline. */
 .editor-outline-title {
   margin: 0 0 8px;
   font-size: 1rem;
+  font-weight: 700;
 }
 
 .editor-outline-warning {

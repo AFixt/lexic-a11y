@@ -42,6 +42,15 @@ export interface EditorProps {
    * clobbered.
    */
   initialValue?: string;
+
+  /**
+   * Whether to render the Document Outline panel below the editing surface.
+   * Pass `false` for short-form embedded fields (a reply box, a ticket
+   * description) where the panel is unnecessary chrome.
+   *
+   * @defaultValue true
+   */
+  showOutline?: boolean;
 }
 
 /**

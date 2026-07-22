@@ -68,7 +68,11 @@ export function HeadingOutlinePlugin() {
 
   return (
     <section className="editor-outline" aria-label={t('documentOutline')}>
-      <h2 className="editor-outline-title">{t('documentOutline')}</h2>
+      {/* Deliberately not a heading: the panel belongs to a single form control,
+          so contributing an <h2> to the host page's heading outline would
+          misrepresent the page structure (issue #88). The section's aria-label
+          already names the region for assistive technology. */}
+      <div className="editor-outline-title">{t('documentOutline')}</div>
 
       {/* Non-blocking, accessible warnings: announced politely, prefixed with
           a text marker so they are not conveyed by color alone */}

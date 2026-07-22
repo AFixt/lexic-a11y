@@ -29,7 +29,10 @@ editing more accessible to all users.
 - Markdown Shortcuts: Type `#`, `>`, `-`, `1.`, `**bold**`, and friends to
   format as you go; content can also be serialized to Markdown.
 - Live Document Outline: A running list of the document's headings, with
-  WCAG-aligned warnings for skipped heading levels and multiple H1s.
+  WCAG-aligned warnings for skipped heading levels and multiple H1s. It is a
+  labelled region rather than a heading, so it never contributes to the host
+  page's heading outline, and it can be turned off entirely with
+  `showOutline={false}`.
 - Word and Character Count: Debounced counts surfaced in a polite live region.
 - Paste Sanitization: Pasted markup from Word or Google Docs is cleaned to
   semantic HTML; Ctrl/Cmd+Shift+V pastes as plain text.
@@ -189,6 +192,7 @@ export default function App() {
 | `outputFormat`    | `'html' \| 'markdown'`            | `'html'` | Format passed to `onContentChange`: cleaned HTML or Markdown. Nodes without a Markdown form (tables, images, horizontal rules, code blocks) are omitted from Markdown output.                                           |
 | `onImageUpload`   | `(file: File) => Promise<string>` | —        | Optional. When provided, the Insert Image dialog gains a drag-and-drop zone and file picker; the handler receives the chosen `File` and must resolve to the URL to embed.                                               |
 | `initialValue`    | `string`                          | —        | Optional trusted HTML used to seed the editor once, on mount (e.g. a saved draft or template). Images, tables, and code blocks are preserved. Later changes to this prop are ignored so user edits are never clobbered. |
+| `showOutline`     | `boolean`                         | `true`   | Whether to render the Document Outline panel below the editing surface. Pass `false` for short-form embedded fields (a reply box, a ticket description) where the panel is unnecessary chrome.                          |
 
 #### TypeScript
 

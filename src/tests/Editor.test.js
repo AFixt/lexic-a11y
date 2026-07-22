@@ -182,6 +182,21 @@ describe('Editor Component', () => {
     expect(screen.getByTestId('table-plugin')).toBeInTheDocument();
   });
 
+  it('renders the outline panel by default', () => {
+    renderWithI18n(<Editor onContentChange={jest.fn()} />);
+
+    expect(screen.getByTestId('heading-outline-plugin')).toBeInTheDocument();
+  });
+
+  it('omits the outline panel when showOutline is false', () => {
+    renderWithI18n(<Editor onContentChange={jest.fn()} showOutline={false} />);
+
+    expect(screen.queryByTestId('heading-outline-plugin')).not.toBeInTheDocument();
+    // The rest of the editor is unaffected
+    expect(screen.getByTestId('content-editable')).toBeInTheDocument();
+    expect(screen.getByTestId('word-count-plugin')).toBeInTheDocument();
+  });
+
   it('does not render the initial-content plugin when initialValue is omitted', () => {
     mockInitialContentCapture.html = undefined;
     const mockOnContentChange = jest.fn();
