@@ -175,3 +175,12 @@ jobs:
         run: npm test
         env:
           CI: true
+
+      - name: Smoke-test the built bundles
+        # The source suite cannot see build-config regressions: #80 shipped
+        # bundles that threw "React is not defined" on mount while `npm test`
+        # was green. This mounts the real dist/ artifacts under each supported
+        # React major.
+        run: npm run test:dist
+        env:
+          CI: true
