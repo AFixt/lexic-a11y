@@ -165,16 +165,17 @@ function OutputFormatSync({ outputFormat, onContentChange }) {
  *   preserved. Later changes to this prop are ignored so user edits are never
  *   clobbered.
  * @param {boolean} [props.showOutline] Whether to render the Document Outline
- *   panel below the editing surface. Defaults to `true`; pass `false` for
- *   short-form embedded fields (a reply box, a ticket description) where the
- *   panel is unnecessary chrome.
+ *   panel below the editing surface. Defaults to `false`, so the editor stays
+ *   minimal chrome by default and suits short-form embedded fields (a reply
+ *   box, a ticket description). Pass `true` for long-form authoring, where a
+ *   live heading map earns its space.
  */
 export default function Editor({
   onContentChange,
   outputFormat = 'html',
   onImageUpload,
   initialValue,
-  showOutline = true,
+  showOutline = false,
 }) {
   const { t } = useTranslation();
   const [showDocs, setShowDocs] = useState(false);

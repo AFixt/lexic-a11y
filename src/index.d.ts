@@ -45,10 +45,11 @@ export interface EditorProps {
 
   /**
    * Whether to render the Document Outline panel below the editing surface.
-   * Pass `false` for short-form embedded fields (a reply box, a ticket
-   * description) where the panel is unnecessary chrome.
+   * Off by default, so the editor stays minimal chrome and suits short-form
+   * embedded fields (a reply box, a ticket description). Pass `true` for
+   * long-form authoring, where a live heading map earns its space.
    *
-   * @defaultValue true
+   * @defaultValue false
    */
   showOutline?: boolean;
 }
