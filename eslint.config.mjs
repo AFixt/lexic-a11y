@@ -2,7 +2,6 @@ import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import importX from 'eslint-plugin-import-x';
 import jsdoc from 'eslint-plugin-jsdoc';
-import jsxA11y from 'eslint-plugin-jsx-a11y';
 import n from 'eslint-plugin-n';
 import noSecrets from 'eslint-plugin-no-secrets';
 import promise from 'eslint-plugin-promise';
@@ -46,7 +45,6 @@ export default [
     plugins: {
       react,
       'react-hooks': reactHooks,
-      'jsx-a11y': jsxA11y,
       sonarjs,
       security,
       unicorn,
@@ -88,22 +86,6 @@ export default [
       'react/self-closing-comp': 'error',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error',
-
-      // Accessibility
-      'jsx-a11y/alt-text': 'error',
-      'jsx-a11y/anchor-is-valid': 'error',
-      'jsx-a11y/aria-props': 'error',
-      'jsx-a11y/aria-role': 'error',
-      'jsx-a11y/aria-unsupported-elements': 'error',
-      'jsx-a11y/click-events-have-key-events': 'error',
-      'jsx-a11y/label-has-associated-control': 'error',
-      'jsx-a11y/no-autofocus': ['error', { ignoreNonDOM: true }],
-      'jsx-a11y/no-redundant-roles': 'error',
-      'jsx-a11y/no-static-element-interactions': 'error',
-      'jsx-a11y/no-noninteractive-element-interactions': 'error',
-      'jsx-a11y/prefer-tag-over-role': 'warn',
-      'jsx-a11y/role-has-required-aria-props': 'error',
-      'jsx-a11y/role-supports-aria-props': 'error',
 
       // Code quality
       'sonarjs/cognitive-complexity': ['warn', 15],
@@ -216,6 +198,24 @@ export default [
     },
     rules: {
       'unicorn/filename-case': 'off',
+    },
+  },
+
+  // Repo maintenance scripts — Node-only, run directly by npm scripts and CI.
+  // The base block above only matches `.js`/`.jsx`, so these need their own
+  // globals or every `console`/`process` reads as `no-undef`.
+  {
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      // These scripts report to a human on stdout/stderr — that is their job.
+      'no-console': 'off',
     },
   },
 

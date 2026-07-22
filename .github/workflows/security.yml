@@ -29,6 +29,31 @@ jobs:
           path: ./
           extra_args: --only-verified
 
+  # Policy check — fails if a banned package resolves in the tree
+  banned-deps:
+    name: Banned Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Check for banned dependencies
+        # The package.json `overrides` entry already neutralises axe-core, but
+        # a silent stub is a confusing failure mode. This names the dependency
+        # that pulled it in. See "axe-core is banned" in CLAUDE.md.
+        run: npm run security:banned-deps
+
   # Quick scan on every push/PR
   npm-audit:
     name: NPM Audit
