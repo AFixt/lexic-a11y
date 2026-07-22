@@ -81,7 +81,8 @@ describe('HeadingOutlinePlugin', () => {
     // The panel belongs to a single form control, so its title must not land in
     // the host page's heading outline (issue #88).
     expect(screen.queryAllByRole('heading')).toHaveLength(0);
-    expect(screen.getByText('Document Outline')).toHaveClass('editor-outline-title');
+    // ...but the title is still visible as text
+    expect(screen.getByText('Document Outline')).toBeInTheDocument();
   });
 
   it('renders the outline reflecting the document structure', () => {

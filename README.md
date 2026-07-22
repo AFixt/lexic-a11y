@@ -194,6 +194,25 @@ export default function App() {
 | `initialValue`    | `string`                          | —        | Optional trusted HTML used to seed the editor once, on mount (e.g. a saved draft or template). Images, tables, and code blocks are preserved. Later changes to this prop are ignored so user edits are never clobbered. |
 | `showOutline`     | `boolean`                         | `false`  | Whether to render the Document Outline panel below the editing surface. Off by default, which suits short-form embedded fields (a reply box, a ticket description). Pass `true` for long-form authoring.                |
 
+#### Upgrading
+
+Coming from 1.1.x, the Document Outline panel changed in two ways that affect
+existing consumers:
+
+- **It no longer renders by default.** It used to always render; it is now
+  opt-in. If you want it, pass `showOutline`:
+
+  ```jsx
+  <Editor onContentChange={setContent} showOutline />
+  ```
+
+- **Its title is a `<div>`, not an `<h2>`.** The panel is a labelled region
+  (`<section aria-label="Document Outline">`), so an embedded editor no longer
+  injects a heading into the host page's heading hierarchy. Class names
+  (`.editor-outline`, `.editor-outline-title`) are unchanged, but CSS that
+  selected the title by element — `.editor-outline h2` — needs updating to
+  `.editor-outline-title`.
+
 #### TypeScript
 
 The package ships hand-maintained declarations at `dist/index.d.ts` (the source

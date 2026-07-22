@@ -157,4 +157,19 @@ describe('accessibility assertions (a11y-assert)', () => {
 
     await expectAccessible(document.body);
   });
+
+  // showOutline is off by default, so the case above no longer covers the
+  // outline panel. Assert it explicitly — the panel sits inside the host's
+  // page structure, which is exactly where its markup has to behave (#88).
+  it('editor with the outline panel shown has no violations', async () => {
+    renderWithI18n(withPageChrome(<Editor onContentChange={jest.fn()} showOutline />));
+
+    expect(screen.getByRole('region', { name: 'Document Outline' })).toBeInTheDocument();
+    // The panel must not add to the host page's heading outline: the only
+    // heading here is the page's own h1 from withPageChrome.
+    expect(screen.getAllByRole('heading')).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editor test page');
+
+    await expectAccessible(document.body);
+  });
 });
