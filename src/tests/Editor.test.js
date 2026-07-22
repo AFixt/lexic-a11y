@@ -168,7 +168,8 @@ describe('Editor Component', () => {
 
   it('renders the editor plugins', () => {
     const mockOnContentChange = jest.fn();
-    renderWithI18n(<Editor onContentChange={mockOnContentChange} />);
+    // showOutline is opt-in, so ask for the outline to cover every plugin here
+    renderWithI18n(<Editor onContentChange={mockOnContentChange} showOutline />);
 
     expect(screen.getByTestId('history-plugin')).toBeInTheDocument();
     expect(screen.getByTestId('horizontal-rule-plugin')).toBeInTheDocument();
@@ -180,6 +181,27 @@ describe('Editor Component', () => {
     expect(screen.getByTestId('heading-outline-plugin')).toBeInTheDocument();
     expect(screen.getByTestId('word-count-plugin')).toBeInTheDocument();
     expect(screen.getByTestId('table-plugin')).toBeInTheDocument();
+  });
+
+  it('omits the outline panel by default', () => {
+    renderWithI18n(<Editor onContentChange={jest.fn()} />);
+
+    expect(screen.queryByTestId('heading-outline-plugin')).not.toBeInTheDocument();
+    // The rest of the editor is unaffected
+    expect(screen.getByTestId('content-editable')).toBeInTheDocument();
+    expect(screen.getByTestId('word-count-plugin')).toBeInTheDocument();
+  });
+
+  it('renders the outline panel when showOutline is true', () => {
+    renderWithI18n(<Editor onContentChange={jest.fn()} showOutline />);
+
+    expect(screen.getByTestId('heading-outline-plugin')).toBeInTheDocument();
+  });
+
+  it('omits the outline panel when showOutline is explicitly false', () => {
+    renderWithI18n(<Editor onContentChange={jest.fn()} showOutline={false} />);
+
+    expect(screen.queryByTestId('heading-outline-plugin')).not.toBeInTheDocument();
   });
 
   it('does not render the initial-content plugin when initialValue is omitted', () => {

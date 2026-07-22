@@ -72,6 +72,19 @@ describe('HeadingOutlinePlugin', () => {
     expect(screen.getByText(/No headings yet/)).toBeInTheDocument();
   });
 
+  it('is a labelled region and contributes no heading to the host page', () => {
+    mockHeadings = [makeHeading('1', 'h1', 'Title')];
+
+    renderWithI18n(<HeadingOutlinePlugin />);
+
+    expect(screen.getByRole('region', { name: 'Document Outline' })).toBeInTheDocument();
+    // The panel belongs to a single form control, so its title must not land in
+    // the host page's heading outline (issue #88).
+    expect(screen.queryAllByRole('heading')).toHaveLength(0);
+    // ...but the title is still visible as text
+    expect(screen.getByText('Document Outline')).toBeInTheDocument();
+  });
+
   it('renders the outline reflecting the document structure', () => {
     mockHeadings = [
       makeHeading('1', 'h1', 'Title'),

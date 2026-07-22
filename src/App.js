@@ -63,6 +63,7 @@ export default function App() {
           outputFormat={outputFormat}
           onImageUpload={readFileAsDataUrl}
           initialValue={initialValue}
+          showOutline
         />
         <h2>Output ({outputFormat === 'markdown' ? 'Markdown' : 'HTML'})</h2>
         <pre>{content}</pre>

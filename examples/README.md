@@ -63,6 +63,7 @@ function MyApp() {
       outputFormat="html" // or "markdown"
       onContentChange={(serialized) => console.log(serialized)}
       onImageUpload={async (file) => uploadAndReturnUrl(file)}
+      showOutline // opt in to the document outline panel (off by default)
     />
   );
 }

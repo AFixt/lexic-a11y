@@ -28,8 +28,10 @@ editing more accessible to all users.
   interface, with URL scheme validation that rejects unsafe protocols.
 - Markdown Shortcuts: Type `#`, `>`, `-`, `1.`, `**bold**`, and friends to
   format as you go; content can also be serialized to Markdown.
-- Live Document Outline: A running list of the document's headings, with
-  WCAG-aligned warnings for skipped heading levels and multiple H1s.
+- Live Document Outline: Opt in with `showOutline` for a running list of the
+  document's headings, with WCAG-aligned warnings for skipped heading levels and
+  multiple H1s. It is a labelled region rather than a heading, so it never
+  contributes to the host page's heading outline.
 - Word and Character Count: Debounced counts surfaced in a polite live region.
 - Paste Sanitization: Pasted markup from Word or Google Docs is cleaned to
   semantic HTML; Ctrl/Cmd+Shift+V pastes as plain text.
@@ -173,6 +175,7 @@ export default function App() {
         outputFormat="html"
         onImageUpload={uploadImage}
         initialValue="<p>Pre-filled <strong>draft</strong> content.</p>"
+        showOutline
       />
       <h2>Output HTML</h2>
       <pre>{content}</pre>
@@ -189,6 +192,26 @@ export default function App() {
 | `outputFormat`    | `'html' \| 'markdown'`            | `'html'` | Format passed to `onContentChange`: cleaned HTML or Markdown. Nodes without a Markdown form (tables, images, horizontal rules, code blocks) are omitted from Markdown output.                                           |
 | `onImageUpload`   | `(file: File) => Promise<string>` | —        | Optional. When provided, the Insert Image dialog gains a drag-and-drop zone and file picker; the handler receives the chosen `File` and must resolve to the URL to embed.                                               |
 | `initialValue`    | `string`                          | —        | Optional trusted HTML used to seed the editor once, on mount (e.g. a saved draft or template). Images, tables, and code blocks are preserved. Later changes to this prop are ignored so user edits are never clobbered. |
+| `showOutline`     | `boolean`                         | `false`  | Whether to render the Document Outline panel below the editing surface. Off by default, which suits short-form embedded fields (a reply box, a ticket description). Pass `true` for long-form authoring.                |
+
+#### Upgrading
+
+Coming from 1.1.x, the Document Outline panel changed in two ways that affect
+existing consumers:
+
+- **It no longer renders by default.** It used to always render; it is now
+  opt-in. If you want it, pass `showOutline`:
+
+  ```jsx
+  <Editor onContentChange={setContent} showOutline />
+  ```
+
+- **Its title is a `<div>`, not an `<h2>`.** The panel is a labelled region
+  (`<section aria-label="Document Outline">`), so an embedded editor no longer
+  injects a heading into the host page's heading hierarchy. Class names
+  (`.editor-outline`, `.editor-outline-title`) are unchanged, but CSS that
+  selected the title by element — `.editor-outline h2` — needs updating to
+  `.editor-outline-title`.
 
 #### TypeScript
 
