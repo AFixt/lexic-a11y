@@ -122,11 +122,14 @@ const withPageChrome = (component) => (
 );
 
 // Rules that cannot produce meaningful results under jsdom and are therefore
-// excluded here (they ARE covered by the real-browser axe scan in e2e/):
-// - KEYBOARD-01: focus indication is judged from computed CSS; jsdom loads no
-//   stylesheets, so every element looks unstyled
+// excluded here. jsdom loads no stylesheets, so anything judged from computed
+// CSS is unevaluable — every element looks unstyled.
+// - KEYBOARD-01: focus indication. Covered instead by the real-browser focus
+//   indicator tests in e2e/editor.spec.js, which measure the computed
+//   indicator and its contrast in Chromium. (Note: this repo bans axe-core,
+//   so those are Playwright assertions, not an axe scan — see CLAUDE.md.)
 // - NAVIGATION-08: site-level rule (search facility/sitemap) — not applicable
-//   to an embeddable component under test
+//   to an embeddable component under test, and covered nowhere else.
 const JSDOM_INAPPLICABLE_RULES = new Set(['KEYBOARD-01', 'NAVIGATION-08']);
 
 const expectAccessible = async (element) => {
