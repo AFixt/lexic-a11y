@@ -164,12 +164,18 @@ function OutputFormatSync({ outputFormat, onContentChange }) {
  *   content is converted faithfully — images, tables, and code blocks are
  *   preserved. Later changes to this prop are ignored so user edits are never
  *   clobbered.
+ * @param {boolean} [props.showOutline] Whether to render the Document Outline
+ *   panel below the editing surface. Defaults to `false`, so the editor stays
+ *   minimal chrome by default and suits short-form embedded fields (a reply
+ *   box, a ticket description). Pass `true` for long-form authoring, where a
+ *   live heading map earns its space.
  */
 export default function Editor({
   onContentChange,
   outputFormat = 'html',
   onImageUpload,
   initialValue,
+  showOutline = false,
 }) {
   const { t } = useTranslation();
   const [showDocs, setShowDocs] = useState(false);
@@ -207,7 +213,7 @@ export default function Editor({
           />
           <OutputFormatSync outputFormat={outputFormat} onContentChange={onContentChange} />
         </div>
-        <HeadingOutlinePlugin />
+        {showOutline ? <HeadingOutlinePlugin /> : null}
         <WordCountPlugin />
       </div>
 

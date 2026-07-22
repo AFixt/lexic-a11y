@@ -158,3 +158,170 @@ test.describe('initial content', () => {
     await expect(page.locator('pre')).toContainText('Start and more');
   });
 });
+
+// --- Focus indicators (WCAG 2.2 SC 1.4.11 Non-text Contrast) ---
+//
+// These live here rather than in src/tests/accessibility.test.js because a
+// focus indicator is judged from computed CSS, and jsdom loads no stylesheets:
+// there, every element looks unstyled. A real browser is the only place this
+// can be measured, so the jsdom suite excludes KEYBOARD-01 and defers to these.
+
+/** Parse a computed `rgb()`/`rgba()` string into channels plus alpha. */
+const parseColor = (value) => {
+  const match = /rgba?\(([^)]+)\)/.exec(value ?? '');
+  if (!match) return null;
+  const parts = match[1].split(',').map((part) => Number.parseFloat(part.trim()));
+  const [r, g, b, a = 1] = parts;
+  return { r, g, b, a };
+};
+
+/** Flatten a translucent color onto an opaque backdrop. */
+const flatten = (fg, bg) => ({
+  r: fg.a * fg.r + (1 - fg.a) * bg.r,
+  g: fg.a * fg.g + (1 - fg.a) * bg.g,
+  b: fg.a * fg.b + (1 - fg.a) * bg.b,
+  a: 1,
+});
+
+/** WCAG relative luminance. */
+const luminance = ({ r, g, b }) => {
+  const channel = (value) => {
+    const srgb = value / 255;
+    return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+};
+
+/** WCAG contrast ratio between two opaque colors. */
+const contrastRatio = (one, two) => {
+  const [lighter, darker] = [luminance(one), luminance(two)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+};
+
+/**
+ * Read every style that could carry a focus indicator, plus the first opaque
+ * background painted behind the element (the backdrop the indicator sits on).
+ */
+const readIndicator = (page, selector) =>
+  page.evaluate((sel) => {
+    const element = document.querySelector(sel);
+    const styles = getComputedStyle(element);
+
+    // Walk ancestors for the first non-transparent background — that is what a
+    // ring drawn outside the element's border box is actually seen against.
+    let backdrop = 'rgb(255, 255, 255)';
+    for (let node = element.parentElement; node; node = node.parentElement) {
+      const background = getComputedStyle(node).backgroundColor;
+      const alpha = /rgba?\(([^)]+)\)/.exec(background);
+      if (alpha && Number.parseFloat(alpha[1].split(',')[3] ?? '1') !== 0) {
+        backdrop = background;
+        break;
+      }
+    }
+
+    return {
+      outline: `${styles.outlineStyle} ${styles.outlineWidth} ${styles.outlineColor}`,
+      outlineStyle: styles.outlineStyle,
+      outlineWidth: styles.outlineWidth,
+      outlineColor: styles.outlineColor,
+      boxShadow: styles.boxShadow,
+      backdrop,
+    };
+  }, selector);
+
+/**
+ * These controls animate with `transition: all 0.2s`, so reading the computed
+ * style the instant focus lands catches the indicator mid-animation — a
+ * transparent, zero-spread shadow that looks like "no indicator at all". Poll
+ * until two consecutive reads agree, so the assertion sees the settled value.
+ */
+const settledIndicator = async (page, selector) => {
+  let previous = await readIndicator(page, selector);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.waitForTimeout(50);
+    const current = await readIndicator(page, selector);
+    if (current.boxShadow === previous.boxShadow && current.outline === previous.outline) {
+      return current;
+    }
+    previous = current;
+  }
+  return previous;
+};
+
+/**
+ * The indicator's own color: whichever of outline / box-shadow the component
+ * actually uses. Returns null when neither paints anything.
+ */
+const indicatorColor = (styles) => {
+  if (styles.outlineStyle !== 'none' && Number.parseFloat(styles.outlineWidth) > 0) {
+    return parseColor(styles.outlineColor);
+  }
+  if (styles.boxShadow && styles.boxShadow !== 'none') {
+    return parseColor(styles.boxShadow);
+  }
+  return null;
+};
+
+test.describe('focus indicators', () => {
+  // Controls that set `outline: none` and paint their own ring. The editing
+  // surface is deliberately absent: it is a text box whose focus indication is
+  // the caret, not a ring.
+  const CONTROLS = [
+    {
+      name: 'toolbar button',
+      selector: '.editor-toolbar button',
+      open: async () => {},
+    },
+    {
+      name: 'link dialog input',
+      selector: '.form-group input',
+      open: async (page) => {
+        await page.getByRole('button', { name: 'Insert Link' }).click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+      },
+    },
+  ];
+
+  for (const { name, selector, open } of CONTROLS) {
+    test(`${name} shows a focus indicator that differs from its resting state`, async ({
+      page,
+    }) => {
+      await open(page);
+      const control = page.locator(selector).first();
+      const resting = await readIndicator(page, selector);
+
+      await control.focus();
+      await expect(control).toBeFocused();
+      const focused = await settledIndicator(page, selector);
+
+      // Something must visibly change, and it must be a real indicator rather
+      // than only a background/color shift that color-blind users may miss.
+      expect(focused.outline !== resting.outline || focused.boxShadow !== resting.boxShadow).toBe(
+        true,
+      );
+      expect(indicatorColor(focused)).not.toBeNull();
+    });
+
+    test(`${name} focus indicator meets 3:1 contrast (WCAG 2.2 SC 1.4.11)`, async ({ page }) => {
+      await open(page);
+      const control = page.locator(selector).first();
+
+      await control.focus();
+      await expect(control).toBeFocused();
+      const focused = await settledIndicator(page, selector);
+
+      const ring = indicatorColor(focused);
+      expect(ring).not.toBeNull();
+
+      const backdrop = parseColor(focused.backdrop);
+      // A translucent ring is seen as its flattened composite, not its nominal
+      // color — this is where a low-alpha ring fails.
+      const ratio = contrastRatio(flatten(ring, backdrop), backdrop);
+
+      expect(
+        ratio,
+        `focus indicator ${focused.boxShadow || focused.outline} on ${focused.backdrop} is ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  }
+});

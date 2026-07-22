@@ -42,6 +42,16 @@ export interface EditorProps {
    * clobbered.
    */
   initialValue?: string;
+
+  /**
+   * Whether to render the Document Outline panel below the editing surface.
+   * Off by default, so the editor stays minimal chrome and suits short-form
+   * embedded fields (a reply box, a ticket description). Pass `true` for
+   * long-form authoring, where a live heading map earns its space.
+   *
+   * @defaultValue false
+   */
+  showOutline?: boolean;
 }
 
 /**

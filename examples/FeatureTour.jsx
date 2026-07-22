@@ -96,6 +96,7 @@ export default function FeatureTour() {
           onContentChange={setContent}
           outputFormat={outputFormat}
           onImageUpload={readFileAsDataUrl}
+          showOutline
         />
 
         <p className="example-hint">
