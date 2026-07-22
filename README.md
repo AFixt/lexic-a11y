@@ -371,28 +371,29 @@ We welcome contributions from the community! If you'd like to contribute:
 
 ### Available scripts
 
-| Script                  | Purpose                                        |
-| ----------------------- | ---------------------------------------------- |
-| `npm start`             | Start Vite dev server (demo, port 4001)        |
-| `npm run example`       | Open the feature-tour example                  |
-| `npm run build`         | Build the library (Rollup → `dist/`)           |
-| `npm run build:analyze` | Build with bundle visualizer report            |
-| `npm test`              | Run the Jest test suite                        |
-| `npm run test:dist`     | Smoke-test the built bundles (needs `build`)   |
-| `npm run test:e2e`      | Run the Playwright E2E suite                   |
-| `npm run lint`          | Run ESLint                                     |
-| `npm run lint:css`      | Run Stylelint                                  |
-| `npm run lint:md`       | Run markdownlint-cli2                          |
-| `npm run types:check`   | Typecheck the published `.d.ts` under `strict` |
-| `npm run format`        | Run Prettier (write mode)                      |
-| `npm run format:check`  | Run Prettier in check mode                     |
-| `npm run dupes`         | Run jscpd duplication check                    |
-| `npm run size`          | Enforce `size-limit` budgets                   |
-| `npm run links`         | Check markdown links with `lychee`             |
-| `npm run security`      | Run npm audit + OSV + Semgrep + trufflehog     |
-| `npm run license:check` | Verify production dependency licenses          |
-| `npm run check`         | Lint + stylelint + markdown + format + types   |
-| `npm run check:all`     | Full local gate (used by the `pre-push` hook)  |
+| Script                         | Purpose                                        |
+| ------------------------------ | ---------------------------------------------- |
+| `npm start`                    | Start Vite dev server (demo, port 4001)        |
+| `npm run example`              | Open the feature-tour example                  |
+| `npm run build`                | Build the library (Rollup → `dist/`)           |
+| `npm run build:analyze`        | Build with bundle visualizer report            |
+| `npm test`                     | Run the Jest test suite                        |
+| `npm run test:dist`            | Smoke-test the built bundles (needs `build`)   |
+| `npm run test:e2e`             | Run the Playwright E2E suite                   |
+| `npm run lint`                 | Run ESLint                                     |
+| `npm run lint:css`             | Run Stylelint                                  |
+| `npm run lint:md`              | Run markdownlint-cli2                          |
+| `npm run types:check`          | Typecheck the published `.d.ts` under `strict` |
+| `npm run format`               | Run Prettier (write mode)                      |
+| `npm run format:check`         | Run Prettier in check mode                     |
+| `npm run dupes`                | Run jscpd duplication check                    |
+| `npm run size`                 | Enforce `size-limit` budgets                   |
+| `npm run links`                | Check markdown links with `lychee`             |
+| `npm run security`             | Run npm audit + OSV + Semgrep + trufflehog     |
+| `npm run license:check`        | Verify production dependency licenses          |
+| `npm run security:banned-deps` | Fail if a banned package resolves              |
+| `npm run check`                | Lint + stylelint + markdown + format + types   |
+| `npm run check:all`            | Full local gate (used by the `pre-push` hook)  |
 
 > **Accessibility test tooling:** `npm test` runs automated WCAG assertions via
 > [`@afixt/a11y-assert`](https://www.npmjs.com/package/@afixt/a11y-assert), a
@@ -400,6 +401,13 @@ We welcome contributions from the community! If you'd like to contribute:
 > test suite on Node 22+ (the version CI uses); Node 20 only emits an
 > `EBADENGINE` warning. It is a `devDependency` and is not part of the published
 > package or its production `license:check`.
+>
+> **`axe-core` is banned in this project**, directly and transitively. A
+> `package.json` `overrides` entry resolves it to an empty stub so it can never
+> be installed, and `npm run security:banned-deps` fails the build naming the
+> dependency that asked for it. Before adding a dependency, check it does not
+> pull in `axe-core` (`eslint-plugin-jsx-a11y`, `lighthouse`, `pa11y`,
+> `jest-axe`, and `cypress-axe` all do). Use `@afixt/a11y-assert` instead.
 
 ### Architecture decisions
 

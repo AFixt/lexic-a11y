@@ -96,3 +96,15 @@ Whenever I ask to review a PR (pull request), use the `pr-review` skill.
 - Before adding any new dependency, verify with `npm ls axe-core` that it does
   not introduce axe-core into the tree. If it does, do not add it.
 - Use `@afixt/a11y-assert` for accessibility checks instead.
+
+The ban is enforced, not just documented:
+
+- The `overrides` entry in `package.json` maps `axe-core` to an empty stub
+  package, so even a transitive request resolves to nothing installable.
+- `npm run security:banned-deps` (in `check:all`, `security`, and the
+  `Banned Dependencies` CI job) fails and names the dependency chain that
+  requested it — the override alone would only produce a confusing runtime
+  breakage in whichever tool wanted axe-core.
+
+To ban another package, add it to `BANNED` in `scripts/check-banned-deps.mjs`
+and add a matching `overrides` entry.
