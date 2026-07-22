@@ -397,7 +397,7 @@ kbd {
   border-color: var(--border-color);
   color: var(--text-color);
   transform: none;
-  box-shadow: 0 0 0 2px rgb(67 97 238 / 30%);
+  box-shadow: 0 0 0 2px var(--focus-color);
 }
 
 /* Universal active state for all toolbar buttons */
@@ -433,9 +433,14 @@ kbd {
   }
 }
 
+/* The ring is the only focus indication (outline is none), so it has to clear
+   3:1 against the toolbar behind it — WCAG 2.2 SC 1.4.11. A translucent ring is
+   seen as its composite over that backdrop, and #4361ee at 30% flattened onto
+   the toolbar's #f8f9fa measured 1.51:1. Solid --focus-color is ~5:1.
+   Regression-tested in e2e/editor.spec.js ("focus indicators"). */
 .editor-toolbar button:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgb(67 97 238 / 30%);
+  box-shadow: 0 0 0 2px var(--focus-color);
 }
 
 /* Button styling */
@@ -548,10 +553,11 @@ kbd {
   transition: var(--transition);
 }
 
+/* As above: at 20% alpha this ring measured 1.32:1 on white. */
 .form-group input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgb(67 97 238 / 20%);
+  box-shadow: 0 0 0 2px var(--focus-color);
 }
 
 /* Image upload drop zone (rendered only when an upload handler is configured) */
@@ -595,9 +601,14 @@ kbd {
   color: #fff;
 }
 
+/* This button also fills with --primary-color on focus, so the ring is
+   separated from the fill by a white gap; that keeps the indicator visible
+   against both the button and the surface behind it. */
 .upload-button:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgb(67 97 238 / 30%);
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--focus-color);
 }
 
 /* aria-live region for upload progress/errors */
