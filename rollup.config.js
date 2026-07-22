@@ -56,7 +56,14 @@ export default {
     babel({
       babelHelpers: 'bundled',
       exclude: 'node_modules/**',
-      presets: ['@babel/preset-env', '@babel/preset-react'],
+      // Presets deliberately live ONLY in `babel.config.js`. Repeating
+      // `@babel/preset-react` here overrode that file's `runtime: 'automatic'`
+      // with the classic runtime (Babel merges same-named presets, and the
+      // programmatic options win), so every component compiled to a bare
+      // `React.createElement` that nothing bound in module scope — the
+      // published bundles threw "React is not defined" on mount (#80).
+      // One source of truth keeps the built output and the test/dev transform
+      // from drifting apart again.
     }),
     commonjs(),
     postcss({
