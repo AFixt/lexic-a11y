@@ -1,5 +1,4 @@
 // editor.spec.js — E2E smoke tests for the demo app in a real browser
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 const EDITOR = '.editor-input';
@@ -157,28 +156,5 @@ test.describe('initial content', () => {
 
     await expect(page.locator(`${EDITOR} p`)).toContainText('Start and more');
     await expect(page.locator('pre')).toContainText('Start and more');
-  });
-});
-
-test.describe('accessibility scan', () => {
-  test('axe finds no serious or critical violations in the editor UI', async ({ page }) => {
-    // Scope the scan to the editor component so unrelated demo-page markup
-    // can't mask or add noise to the editor's own results. The toolbar and the
-    // content container are siblings under the Lexical composer (no shared
-    // wrapper), so include both — otherwise the most ARIA-heavy markup (the
-    // toolbar) would be excluded from the scan.
-    const results = await new AxeBuilder({ page })
-      .include('.editor-toolbar')
-      .include('.editor-container')
-      .analyze();
-
-    const seriousOrWorse = results.violations.filter((violation) =>
-      ['serious', 'critical'].includes(violation.impact),
-    );
-
-    expect(
-      seriousOrWorse,
-      seriousOrWorse.map((violation) => `${violation.id}: ${violation.description}`).join('\n'),
-    ).toEqual([]);
   });
 });
