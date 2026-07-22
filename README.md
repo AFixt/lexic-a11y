@@ -30,8 +30,8 @@ editing more accessible to all users.
   format as you go; content can also be serialized to Markdown.
 - Live Document Outline: Opt in with `showOutline` for a running list of the
   document's headings, with WCAG-aligned warnings for skipped heading levels and
-  multiple H1s. It is a labelled region rather than a heading, so it never
-  contributes to the host page's heading outline.
+  multiple H1s. It is a labelled list, so it contributes neither a heading nor a
+  landmark to the host page's structure.
 - Word and Character Count: Debounced counts surfaced in a polite live region.
 - Paste Sanitization: Pasted markup from Word or Google Docs is cleaned to
   semantic HTML; Ctrl/Cmd+Shift+V pastes as plain text.
@@ -206,12 +206,14 @@ existing consumers:
   <Editor onContentChange={setContent} showOutline />
   ```
 
-- **Its title is a `<div>`, not an `<h2>`.** The panel is a labelled region
-  (`<section aria-label="Document Outline">`), so an embedded editor no longer
-  injects a heading into the host page's heading hierarchy. Class names
-  (`.editor-outline`, `.editor-outline-title`) are unchanged, but CSS that
-  selected the title by element — `.editor-outline h2` — needs updating to
-  `.editor-outline-title`.
+- **It no longer adds a heading or a landmark to the host page.** The title is a
+  `<div>` rather than an `<h2>`, the panel's `<section>` is unnamed (so it stays
+  generic instead of becoming a `region` landmark), and the heading list is a
+  labelled `<ul>` rather than a `<nav>`. An embedded editor therefore leaves the
+  host page's heading hierarchy and landmark structure alone. Class names
+  (`.editor-outline`, `.editor-outline-title`, `.editor-outline-list`) are
+  unchanged, but CSS or queries that relied on the old elements —
+  `.editor-outline h2`, or a `nav` inside the panel — need updating.
 
 #### TypeScript
 

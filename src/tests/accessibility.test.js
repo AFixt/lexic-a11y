@@ -24,11 +24,24 @@ jest.mock('@lexical/react/LexicalComposerContext', () => ({
   useLexicalComposerContext: () => [mockEditor],
 }));
 
+// Root children the mocked editor state exposes. Defaults to empty; a test can
+// populate it to exercise the outline in its non-empty state, where it renders
+// the heading list rather than the empty-state message.
+let mockRootChildren = [];
+
+const makeHeadingNode = (key, tag, text) => ({
+  __isHeading: true,
+  getKey: () => key,
+  getTag: () => tag,
+  getTextContent: () => text,
+  selectStart: jest.fn(),
+});
+
 jest.mock('lexical', () => ({
   $getSelection: jest.fn(() => null),
   $isRangeSelection: jest.fn(() => false),
   $createParagraphNode: jest.fn(() => ({})),
-  $getRoot: jest.fn(() => ({ getChildren: () => [], getTextContent: () => '' })),
+  $getRoot: jest.fn(() => ({ getChildren: () => mockRootChildren, getTextContent: () => '' })),
   KEY_ESCAPE_COMMAND: 'escape',
   COMMAND_PRIORITY_HIGH: 1,
   FORMAT_TEXT_COMMAND: 'format-text',
@@ -48,7 +61,7 @@ jest.mock('@lexical/selection', () => ({ $setBlocksType: jest.fn() }));
 
 jest.mock('@lexical/rich-text', () => ({
   $createHeadingNode: jest.fn(() => ({})),
-  $isHeadingNode: jest.fn(() => false),
+  $isHeadingNode: jest.fn((node) => Boolean(node && node.__isHeading)),
   HeadingNode: class HeadingNode {},
   QuoteNode: class QuoteNode {},
 }));
@@ -136,6 +149,10 @@ const expectAccessible = async (element) => {
 };
 
 describe('accessibility assertions (a11y-assert)', () => {
+  beforeEach(() => {
+    mockRootChildren = [];
+  });
+
   it('toolbar renders without accessibility violations', async () => {
     renderWithI18n(withPageChrome(<ToolbarPlugin showDocs={false} setShowDocs={jest.fn()} />));
 
@@ -162,13 +179,24 @@ describe('accessibility assertions (a11y-assert)', () => {
   // outline panel. Assert it explicitly — the panel sits inside the host's
   // page structure, which is exactly where its markup has to behave (#88).
   it('editor with the outline panel shown has no violations', async () => {
+    // Populate the outline: with no headings it renders its empty-state message
+    // instead of the list, so the assertions below would pass vacuously.
+    mockRootChildren = [
+      makeHeadingNode('1', 'h1', 'Seeded title'),
+      makeHeadingNode('2', 'h2', 'Seeded section'),
+    ];
+
     renderWithI18n(withPageChrome(<Editor onContentChange={jest.fn()} showOutline />));
 
-    expect(screen.getByRole('region', { name: 'Document Outline' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Document Outline' })).toBeInTheDocument();
     // The panel must not add to the host page's heading outline: the only
     // heading here is the page's own h1 from withPageChrome.
     expect(screen.getAllByRole('heading')).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editor test page');
+    // Nor to its landmark structure: the only landmark is the page's own <main>.
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.queryAllByRole('region')).toHaveLength(0);
+    expect(screen.queryAllByRole('navigation')).toHaveLength(0);
 
     await expectAccessible(document.body);
   });
