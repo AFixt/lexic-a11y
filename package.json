@@ -37,11 +37,12 @@
     "security:osv": "osv-scanner --lockfile=package-lock.json",
     "security:semgrep": "semgrep --config=p/javascript --config=p/react --config=p/owasp-top-ten --error --metrics=off",
     "security:secrets": "trufflehog git file://. --only-verified --fail",
-    "security": "npm-run-all -p security:audit security:osv security:semgrep security:secrets",
+    "security:banned-deps": "node scripts/check-banned-deps.mjs",
+    "security": "npm-run-all -p security:audit security:osv security:semgrep security:secrets security:banned-deps",
     "license:check": "license-checker-rseidelsohn --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense;Python-2.0;WTFPL;BlueOak-1.0.0' --excludePrivatePackages --summary",
     "license:report": "license-checker-rseidelsohn --production --csv --out reports/licenses.csv",
     "check": "npm-run-all -p lint lint:css lint:md format:check types:check",
-    "check:all": "npm-run-all -s check test build dupes size license:check security:audit security:secrets",
+    "check:all": "npm-run-all -s check test build dupes size license:check security:audit security:secrets security:banned-deps",
     "ci": "npm run check:all",
     "prepare": "husky",
     "example": "vite --open /examples/index.html",
@@ -77,6 +78,9 @@
   "peerDependencies": {
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
     "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+  },
+  "overrides": {
+    "axe-core": "npm:empty-npm-package@1.0.0"
   },
   "dependencies": {
     "@lexical/code": "0.12.6",

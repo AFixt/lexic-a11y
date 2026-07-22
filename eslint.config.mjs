@@ -201,5 +201,23 @@ export default [
     },
   },
 
+  // Repo maintenance scripts — Node-only, run directly by npm scripts and CI.
+  // The base block above only matches `.js`/`.jsx`, so these need their own
+  // globals or every `console`/`process` reads as `no-undef`.
+  {
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      // These scripts report to a human on stdout/stderr — that is their job.
+      'no-console': 'off',
+    },
+  },
+
   prettier,
 ];
