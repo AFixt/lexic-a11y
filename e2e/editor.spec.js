@@ -66,6 +66,75 @@ test.describe('basic editing', () => {
   });
 });
 
+test.describe('code blocks', () => {
+  test('Enter inserts a new line inside a code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('const x = 1;');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('const y = 2;');
+
+    const block = page.locator(`${EDITOR} code`);
+    await expect(block).toContainText('const x = 1;');
+    await expect(block).toContainText('const y = 2;');
+    // The two statements are on separate lines, not run together
+    await expect(block.locator('br')).toHaveCount(1);
+  });
+
+  test('Enter on an empty trailing line exits the code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('const x = 1;');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('after the block');
+
+    // The trailing text landed in a paragraph following the block, and the
+    // blank lines used to escape were cleaned out of the block itself.
+    await expect(page.locator(`${EDITOR} code`)).toHaveText('const x = 1;');
+    await expect(page.locator(`${EDITOR} p`).last()).toHaveText('after the block');
+  });
+
+  test('Shift+Enter inserts a line break inside a code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('line one');
+    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.type('line two');
+
+    const block = page.locator(`${EDITOR} code`);
+    await expect(block).toContainText('line one');
+    await expect(block).toContainText('line two');
+    await expect(block.locator('br')).toHaveCount(1);
+  });
+
+  test('``` markdown fence converts to a code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('```js ');
+    await page.keyboard.type('const fenced = true;');
+
+    const block = page.locator(`${EDITOR} code`);
+    await expect(block).toContainText('const fenced = true;');
+    // The literal backticks were consumed by the transformer
+    await expect(page.locator(EDITOR)).not.toContainText('```');
+  });
+
+  test('code serializes to Markdown output (fences and backticks)', async ({ page }) => {
+    // The docs promise code now has a Markdown form; assert the real
+    // serialized output, which the jsdom suite cannot (it mocks
+    // $convertToMarkdownString).
+    await page.getByRole('radio', { name: 'Markdown' }).check();
+
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('const fenced = true;');
+
+    await expect(page.locator('pre')).toContainText('```');
+    await expect(page.locator('pre')).toContainText('const fenced = true;');
+  });
+});
+
 test.describe('link dialog', () => {
   test('inserts a link through the accessible dialog', async ({ page }) => {
     await page.locator(EDITOR).click();
@@ -261,6 +330,130 @@ const indicatorColor = (styles) => {
   }
   return null;
 };
+
+// --- Text colour contrast (WCAG 2.2 SC 1.4.3 Contrast (Minimum)) ---
+//
+// Like the focus-indicator checks above, these need real computed styles and
+// therefore a real browser: jsdom loads no stylesheets, so the jsdom rule
+// suite cannot measure contrast at all (issue #84). Each check reads the
+// rendered text colour and the first opaque background painted behind it.
+
+/**
+ * For each element matching `selector`, read the computed colour, font metrics,
+ * and the stack of backgrounds painted behind the text (walking from the
+ * element itself up through its ancestors until the first fully opaque layer),
+ * plus a label for error messages.
+ */
+const readTextStyles = (page, selector) =>
+  page.evaluate((sel) => {
+    return [...document.querySelectorAll(sel)].map((element) => {
+      const styles = getComputedStyle(element);
+
+      // Every painted layer matters: a translucent background is not the
+      // backdrop itself, it is composited over whatever is beneath it.
+      const backgrounds = [];
+      for (let node = element; node; node = node.parentElement) {
+        const background = getComputedStyle(node).backgroundColor;
+        const match = /rgba?\(([^)]+)\)/.exec(background);
+        const alpha = match ? Number.parseFloat(match[1].split(',')[3] ?? '1') : 0;
+        if (alpha > 0) {
+          backgrounds.push(background);
+          if (alpha === 1) break;
+        }
+      }
+
+      return {
+        label:
+          element.getAttribute('aria-label') ||
+          `${element.tagName.toLowerCase()} "${(element.textContent || '').trim().slice(0, 30)}"`,
+        color: styles.color,
+        fontSize: Number.parseFloat(styles.fontSize),
+        fontWeight: Number.parseFloat(styles.fontWeight),
+        backgrounds,
+      };
+    });
+  }, selector);
+
+/**
+ * SC 1.4.3 threshold: large-scale text (24px+, or bold 18.66px+) needs 3:1,
+ * everything else 4.5:1.
+ */
+const requiredRatio = ({ fontSize, fontWeight }) =>
+  fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700) ? 3 : 4.5;
+
+/** Assert every element matching `selector` meets its SC 1.4.3 threshold. */
+const expectReadableText = async (page, selector) => {
+  const entries = await readTextStyles(page, selector);
+  expect(entries.length, `${selector} matched nothing`).toBeGreaterThan(0);
+
+  for (const entry of entries) {
+    // Composite the background stack bottom-up (over white, the page default)
+    // so translucent layers are seen as rendered, not at their nominal colour.
+    const backdrop = entry.backgrounds
+      .reverse()
+      .reduce((below, layer) => flatten(parseColor(layer), below), {
+        r: 255,
+        g: 255,
+        b: 255,
+        a: 1,
+      });
+    // Translucent text is likewise seen as its composite over the backdrop.
+    const text = flatten(parseColor(entry.color), backdrop);
+    const ratio = contrastRatio(text, backdrop);
+    const backdropLabel = `rgb(${Math.round(backdrop.r)}, ${Math.round(backdrop.g)}, ${Math.round(backdrop.b)})`;
+
+    expect(
+      ratio,
+      `${entry.label}: ${entry.color} on ${backdropLabel} is ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(requiredRatio(entry));
+  }
+};
+
+test.describe('text colour contrast (WCAG 2.2 SC 1.4.3)', () => {
+  test('every toolbar control has readable text', async ({ page }) => {
+    await expectReadableText(page, '.editor-toolbar button');
+  });
+
+  test('editor content text is readable', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('Readable body text');
+
+    await expectReadableText(page, `${EDITOR} p`);
+  });
+
+  test('the placeholder is readable', async ({ page }) => {
+    await expectReadableText(page, '.editor-placeholder');
+  });
+
+  test('the word count is readable', async ({ page }) => {
+    await expectReadableText(page, '.editor-word-count');
+  });
+
+  test('code block and inline code text are readable on their backgrounds', async ({ page }) => {
+    const seed = '<p>Uses <code>inline()</code> code</p><pre>const block = true;</pre>';
+    await page.goto(`/?seed=${encodeURIComponent(seed)}`);
+    await expect(page.locator(EDITOR)).toBeVisible();
+
+    await expectReadableText(page, `${EDITOR} .editor-text-code`);
+    await expectReadableText(page, `${EDITOR} .editor-code-block`);
+  });
+
+  test('link text is readable', async ({ page }) => {
+    const seed = '<p><a href="https://example.com">a readable link</a></p>';
+    await page.goto(`/?seed=${encodeURIComponent(seed)}`);
+    await expect(page.locator(EDITOR)).toBeVisible();
+
+    await expectReadableText(page, `${EDITOR} a`);
+  });
+
+  test('dialog labels and inputs are readable', async ({ page }) => {
+    await page.getByRole('button', { name: 'Insert Link' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    await expectReadableText(page, '.form-group label');
+    await expectReadableText(page, '.form-group input');
+  });
+});
 
 test.describe('focus indicators', () => {
   // Controls that set `outline: none` and paint their own ring. The editing
