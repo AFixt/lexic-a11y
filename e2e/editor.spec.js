@@ -66,6 +66,61 @@ test.describe('basic editing', () => {
   });
 });
 
+test.describe('code blocks', () => {
+  test('Enter inserts a new line inside a code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('const x = 1;');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('const y = 2;');
+
+    const block = page.locator(`${EDITOR} code`);
+    await expect(block).toContainText('const x = 1;');
+    await expect(block).toContainText('const y = 2;');
+    // The two statements are on separate lines, not run together
+    await expect(block.locator('br')).toHaveCount(1);
+  });
+
+  test('Enter on an empty trailing line exits the code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('const x = 1;');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('after the block');
+
+    // The trailing text landed in a paragraph following the block, and the
+    // blank lines used to escape were cleaned out of the block itself.
+    await expect(page.locator(`${EDITOR} code`)).toHaveText('const x = 1;');
+    await expect(page.locator(`${EDITOR} p`).last()).toHaveText('after the block');
+  });
+
+  test('Shift+Enter inserts a line break inside a code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('line one');
+    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.type('line two');
+
+    const block = page.locator(`${EDITOR} code`);
+    await expect(block).toContainText('line one');
+    await expect(block).toContainText('line two');
+    await expect(block.locator('br')).toHaveCount(1);
+  });
+
+  test('``` markdown fence converts to a code block (issue #81)', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('```js ');
+    await page.keyboard.type('const fenced = true;');
+
+    const block = page.locator(`${EDITOR} code`);
+    await expect(block).toContainText('const fenced = true;');
+    // The literal backticks were consumed by the transformer
+    await expect(page.locator(EDITOR)).not.toContainText('```');
+  });
+});
+
 test.describe('link dialog', () => {
   test('inserts a link through the accessible dialog', async ({ page }) => {
     await page.locator(EDITOR).click();
