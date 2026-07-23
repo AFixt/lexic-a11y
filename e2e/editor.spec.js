@@ -119,6 +119,20 @@ test.describe('code blocks', () => {
     // The literal backticks were consumed by the transformer
     await expect(page.locator(EDITOR)).not.toContainText('```');
   });
+
+  test('code serializes to Markdown output (fences and backticks)', async ({ page }) => {
+    // The docs promise code now has a Markdown form; assert the real
+    // serialized output, which the jsdom suite cannot (it mocks
+    // $convertToMarkdownString).
+    await page.getByRole('radio', { name: 'Markdown' }).check();
+
+    await page.locator(EDITOR).click();
+    await page.getByRole('button', { name: /Code Block/ }).click();
+    await page.keyboard.type('const fenced = true;');
+
+    await expect(page.locator('pre')).toContainText('```');
+    await expect(page.locator('pre')).toContainText('const fenced = true;');
+  });
 });
 
 test.describe('link dialog', () => {

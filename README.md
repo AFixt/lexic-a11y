@@ -26,8 +26,9 @@ editing more accessible to all users.
   semantic structure.
 - Link Management: Insert and edit hyperlinks with an accessible dialog
   interface, with URL scheme validation that rejects unsafe protocols.
-- Markdown Shortcuts: Type `#`, `>`, `-`, `1.`, `**bold**`, and friends to
-  format as you go; content can also be serialized to Markdown.
+- Markdown Shortcuts: Type `#`, `>`, `-`, `1.`, `**bold**`, `` `code` ``,
+  ` ``` ` fences, and friends to format as you go; content can also be
+  serialized to Markdown.
 - Live Document Outline: Opt in with `showOutline` for a running list of the
   document's headings, with WCAG-aligned warnings for skipped heading levels and
   multiple H1s. It is a labelled list, so it contributes neither a heading nor a
