@@ -271,25 +271,25 @@ const indicatorColor = (styles) => {
 
 /**
  * For each element matching `selector`, read the computed colour, font metrics,
- * and the first opaque background painted behind the text (walking from the
- * element itself up through its ancestors), plus a label for error messages.
+ * and the stack of backgrounds painted behind the text (walking from the
+ * element itself up through its ancestors until the first fully opaque layer),
+ * plus a label for error messages.
  */
 const readTextStyles = (page, selector) =>
   page.evaluate((sel) => {
-    const isOpaque = (background) => {
-      const match = /rgba?\(([^)]+)\)/.exec(background);
-      return match && Number.parseFloat(match[1].split(',')[3] ?? '1') !== 0;
-    };
-
     return [...document.querySelectorAll(sel)].map((element) => {
       const styles = getComputedStyle(element);
 
-      let backdrop = 'rgb(255, 255, 255)';
+      // Every painted layer matters: a translucent background is not the
+      // backdrop itself, it is composited over whatever is beneath it.
+      const backgrounds = [];
       for (let node = element; node; node = node.parentElement) {
         const background = getComputedStyle(node).backgroundColor;
-        if (isOpaque(background)) {
-          backdrop = background;
-          break;
+        const match = /rgba?\(([^)]+)\)/.exec(background);
+        const alpha = match ? Number.parseFloat(match[1].split(',')[3] ?? '1') : 0;
+        if (alpha > 0) {
+          backgrounds.push(background);
+          if (alpha === 1) break;
         }
       }
 
@@ -300,7 +300,7 @@ const readTextStyles = (page, selector) =>
         color: styles.color,
         fontSize: Number.parseFloat(styles.fontSize),
         fontWeight: Number.parseFloat(styles.fontWeight),
-        backdrop,
+        backgrounds,
       };
     });
   }, selector);
@@ -318,14 +318,24 @@ const expectReadableText = async (page, selector) => {
   expect(entries.length, `${selector} matched nothing`).toBeGreaterThan(0);
 
   for (const entry of entries) {
-    const backdrop = parseColor(entry.backdrop);
-    // Translucent text is seen as its composite over the backdrop.
+    // Composite the background stack bottom-up (over white, the page default)
+    // so translucent layers are seen as rendered, not at their nominal colour.
+    const backdrop = entry.backgrounds
+      .reverse()
+      .reduce((below, layer) => flatten(parseColor(layer), below), {
+        r: 255,
+        g: 255,
+        b: 255,
+        a: 1,
+      });
+    // Translucent text is likewise seen as its composite over the backdrop.
     const text = flatten(parseColor(entry.color), backdrop);
     const ratio = contrastRatio(text, backdrop);
+    const backdropLabel = `rgb(${Math.round(backdrop.r)}, ${Math.round(backdrop.g)}, ${Math.round(backdrop.b)})`;
 
     expect(
       ratio,
-      `${entry.label}: ${entry.color} on ${entry.backdrop} is ${ratio.toFixed(2)}:1`,
+      `${entry.label}: ${entry.color} on ${backdropLabel} is ${ratio.toFixed(2)}:1`,
     ).toBeGreaterThanOrEqual(requiredRatio(entry));
   }
 };
