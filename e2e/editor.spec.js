@@ -262,6 +262,120 @@ const indicatorColor = (styles) => {
   return null;
 };
 
+// --- Text colour contrast (WCAG 2.2 SC 1.4.3 Contrast (Minimum)) ---
+//
+// Like the focus-indicator checks above, these need real computed styles and
+// therefore a real browser: jsdom loads no stylesheets, so the jsdom rule
+// suite cannot measure contrast at all (issue #84). Each check reads the
+// rendered text colour and the first opaque background painted behind it.
+
+/**
+ * For each element matching `selector`, read the computed colour, font metrics,
+ * and the first opaque background painted behind the text (walking from the
+ * element itself up through its ancestors), plus a label for error messages.
+ */
+const readTextStyles = (page, selector) =>
+  page.evaluate((sel) => {
+    const isOpaque = (background) => {
+      const match = /rgba?\(([^)]+)\)/.exec(background);
+      return match && Number.parseFloat(match[1].split(',')[3] ?? '1') !== 0;
+    };
+
+    return [...document.querySelectorAll(sel)].map((element) => {
+      const styles = getComputedStyle(element);
+
+      let backdrop = 'rgb(255, 255, 255)';
+      for (let node = element; node; node = node.parentElement) {
+        const background = getComputedStyle(node).backgroundColor;
+        if (isOpaque(background)) {
+          backdrop = background;
+          break;
+        }
+      }
+
+      return {
+        label:
+          element.getAttribute('aria-label') ||
+          `${element.tagName.toLowerCase()} "${(element.textContent || '').trim().slice(0, 30)}"`,
+        color: styles.color,
+        fontSize: Number.parseFloat(styles.fontSize),
+        fontWeight: Number.parseFloat(styles.fontWeight),
+        backdrop,
+      };
+    });
+  }, selector);
+
+/**
+ * SC 1.4.3 threshold: large-scale text (24px+, or bold 18.66px+) needs 3:1,
+ * everything else 4.5:1.
+ */
+const requiredRatio = ({ fontSize, fontWeight }) =>
+  fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700) ? 3 : 4.5;
+
+/** Assert every element matching `selector` meets its SC 1.4.3 threshold. */
+const expectReadableText = async (page, selector) => {
+  const entries = await readTextStyles(page, selector);
+  expect(entries.length, `${selector} matched nothing`).toBeGreaterThan(0);
+
+  for (const entry of entries) {
+    const backdrop = parseColor(entry.backdrop);
+    // Translucent text is seen as its composite over the backdrop.
+    const text = flatten(parseColor(entry.color), backdrop);
+    const ratio = contrastRatio(text, backdrop);
+
+    expect(
+      ratio,
+      `${entry.label}: ${entry.color} on ${entry.backdrop} is ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(requiredRatio(entry));
+  }
+};
+
+test.describe('text colour contrast (WCAG 2.2 SC 1.4.3)', () => {
+  test('every toolbar control has readable text', async ({ page }) => {
+    await expectReadableText(page, '.editor-toolbar button');
+  });
+
+  test('editor content text is readable', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('Readable body text');
+
+    await expectReadableText(page, `${EDITOR} p`);
+  });
+
+  test('the placeholder is readable', async ({ page }) => {
+    await expectReadableText(page, '.editor-placeholder');
+  });
+
+  test('the word count is readable', async ({ page }) => {
+    await expectReadableText(page, '.editor-word-count');
+  });
+
+  test('code block and inline code text are readable on their backgrounds', async ({ page }) => {
+    const seed = '<p>Uses <code>inline()</code> code</p><pre>const block = true;</pre>';
+    await page.goto(`/?seed=${encodeURIComponent(seed)}`);
+    await expect(page.locator(EDITOR)).toBeVisible();
+
+    await expectReadableText(page, `${EDITOR} .editor-text-code`);
+    await expectReadableText(page, `${EDITOR} .editor-code-block`);
+  });
+
+  test('link text is readable', async ({ page }) => {
+    const seed = '<p><a href="https://example.com">a readable link</a></p>';
+    await page.goto(`/?seed=${encodeURIComponent(seed)}`);
+    await expect(page.locator(EDITOR)).toBeVisible();
+
+    await expectReadableText(page, `${EDITOR} a`);
+  });
+
+  test('dialog labels and inputs are readable', async ({ page }) => {
+    await page.getByRole('button', { name: 'Insert Link' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    await expectReadableText(page, '.form-group label');
+    await expectReadableText(page, '.form-group input');
+  });
+});
+
 test.describe('focus indicators', () => {
   // Controls that set `outline: none` and paint their own ring. The editing
   // surface is deliberately absent: it is a text box whose focus indication is
