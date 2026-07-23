@@ -1,5 +1,6 @@
 // Uses the real @lexical/markdown module (no mocks) to validate that the
 // curated transformer set only relies on node types the editor registers.
+import { CodeNode } from '@lexical/code';
 import { LinkNode } from '@lexical/link';
 import { ListItemNode, ListNode } from '@lexical/list';
 import {
@@ -18,7 +19,7 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { EDITOR_TRANSFORMERS } from '../utils/markdown-transformers';
 
 // Must mirror editorConfig.nodes in src/components/Editor.js
-const REGISTERED_NODES = [HeadingNode, ListNode, ListItemNode, QuoteNode, LinkNode];
+const REGISTERED_NODES = [HeadingNode, ListNode, ListItemNode, QuoteNode, LinkNode, CodeNode];
 
 describe('EDITOR_TRANSFORMERS', () => {
   it('includes the supported block transformers', () => {
@@ -27,6 +28,10 @@ describe('EDITOR_TRANSFORMERS', () => {
     expect(EDITOR_TRANSFORMERS).toContain(UNORDERED_LIST);
     expect(EDITOR_TRANSFORMERS).toContain(ORDERED_LIST);
     expect(EDITOR_TRANSFORMERS).toContain(LINK);
+    // CodeNode is registered in the editor, so the ``` fence and `inline`
+    // shortcuts must be wired (issue #81).
+    expect(EDITOR_TRANSFORMERS).toContain(CODE);
+    expect(EDITOR_TRANSFORMERS).toContain(INLINE_CODE);
   });
 
   it('only depends on node types registered in the editor', () => {
@@ -38,14 +43,9 @@ describe('EDITOR_TRANSFORMERS', () => {
     });
   });
 
-  it('excludes transformers for unregistered node types', () => {
-    // CODE requires CodeNode, CHECK_LIST requires check-list support
-    expect(EDITOR_TRANSFORMERS).not.toContain(CODE);
+  it('excludes transformers for unsupported features', () => {
+    // CHECK_LIST requires check-list support, HIGHLIGHT has no theme styling
     expect(EDITOR_TRANSFORMERS).not.toContain(CHECK_LIST);
-  });
-
-  it('excludes text formats the editor theme does not style', () => {
-    expect(EDITOR_TRANSFORMERS).not.toContain(INLINE_CODE);
     expect(EDITOR_TRANSFORMERS).not.toContain(HIGHLIGHT);
   });
 
@@ -55,6 +55,7 @@ describe('EDITOR_TRANSFORMERS', () => {
     const heading = EDITOR_TRANSFORMERS.find((t) => t === HEADING);
     const unordered = EDITOR_TRANSFORMERS.find((t) => t === UNORDERED_LIST);
     const ordered = EDITOR_TRANSFORMERS.find((t) => t === ORDERED_LIST);
+    const code = EDITOR_TRANSFORMERS.find((t) => t === CODE);
 
     expect(heading.regExp.test('# ')).toBe(true);
     expect(heading.regExp.test('### ')).toBe(true);
@@ -62,5 +63,9 @@ describe('EDITOR_TRANSFORMERS', () => {
 
     expect(unordered.regExp.test('- ')).toBe(true);
     expect(ordered.regExp.test('1. ')).toBe(true);
+
+    expect(code.regExp.test('``` ')).toBe(true);
+    expect(code.regExp.test('```js ')).toBe(true);
+    expect(code.regExp.test('`` ')).toBe(false);
   });
 });

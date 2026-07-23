@@ -4,7 +4,9 @@ import {
   BOLD_ITALIC_UNDERSCORE,
   BOLD_STAR,
   BOLD_UNDERSCORE,
+  CODE,
   HEADING,
+  INLINE_CODE,
   ITALIC_STAR,
   ITALIC_UNDERSCORE,
   LINK,
@@ -16,16 +18,14 @@ import {
 
 // Markdown shortcut transformers curated to the node types actually
 // registered in the editor (HeadingNode, ListNode/ListItemNode, QuoteNode,
-// LinkNode) plus text formats the theme styles.
+// LinkNode, CodeNode) plus text formats the theme styles.
 //
 // Deliberately excluded:
-// - CODE (requires CodeNode, not registered)
-// - INLINE_CODE (the 'code' text format has no styling in the editor theme;
-//   inline/block code lands with issue #25)
 // - CHECK_LIST (check lists are not supported)
 // - HIGHLIGHT (the 'highlight' text format has no styling in the theme)
 export const EDITOR_TRANSFORMERS = [
   // Element transformers (block-level)
+  CODE,
   HEADING,
   QUOTE,
   UNORDERED_LIST,
@@ -35,6 +35,7 @@ export const EDITOR_TRANSFORMERS = [
   BOLD_ITALIC_UNDERSCORE,
   BOLD_STAR,
   BOLD_UNDERSCORE,
+  INLINE_CODE,
   ITALIC_STAR,
   ITALIC_UNDERSCORE,
   STRIKETHROUGH,

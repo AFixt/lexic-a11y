@@ -21,7 +21,7 @@ export interface EditorProps {
 
   /**
    * Format passed to `onContentChange`. Nodes without a Markdown form (tables,
-   * images, horizontal rules, code blocks) are omitted from Markdown output.
+   * images, horizontal rules) are omitted from Markdown output.
    *
    * @defaultValue 'html'
    */
