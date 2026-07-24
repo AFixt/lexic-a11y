@@ -139,8 +139,10 @@ const withPageChrome = (component) => (
 // CSS is unevaluable — every element looks unstyled.
 // - KEYBOARD-01: focus indication. Covered instead by the real-browser focus
 //   indicator tests in e2e/editor.spec.js, which measure the computed
-//   indicator and its contrast in Chromium. (Note: this repo bans axe-core,
-//   so those are Playwright assertions, not an axe scan — see CLAUDE.md.)
+//   indicator and its contrast in Chromium. Text colour contrast (SC 1.4.3)
+//   is likewise unevaluable here and covered by the real-browser contrast
+//   tests in the same file. (Note: this repo bans axe-core, so those are
+//   Playwright assertions, not an axe scan — see CLAUDE.md.)
 // - NAVIGATION-08: site-level rule (search facility/sitemap) — not applicable
 //   to an embeddable component under test, and covered nowhere else.
 const JSDOM_INAPPLICABLE_RULES = new Set(['KEYBOARD-01', 'NAVIGATION-08']);

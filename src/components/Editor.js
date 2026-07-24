@@ -100,7 +100,7 @@ const editorConfig = {
 function serializeContent(editor, format) {
   if (format === 'markdown') {
     // Curated transformer set; nodes without a Markdown form (tables, images,
-    // horizontal rules, code blocks) are omitted.
+    // horizontal rules) are omitted.
     return $convertToMarkdownString(EDITOR_TRANSFORMERS);
   }
 
@@ -152,9 +152,9 @@ function OutputFormatSync({ outputFormat, onContentChange }) {
  *   serialized content, in the format selected by `outputFormat`.
  * @param {'html' | 'markdown'} [props.outputFormat] Format passed to
  *   `onContentChange`: cleaned HTML (default) or Markdown. Markdown covers
- *   headings, lists, blockquotes, links, and bold/italic/strikethrough; nodes
- *   without a Markdown representation (tables, images, horizontal rules, code
- *   blocks) are omitted from Markdown output.
+ *   headings, lists, blockquotes, links, code (inline and fenced blocks), and
+ *   bold/italic/strikethrough; nodes without a Markdown representation
+ *   (tables, images, horizontal rules) are omitted from Markdown output.
  * @param {(file: File) => Promise<string>} [props.onImageUpload] Optional async
  *   upload handler. When provided, the Insert Image dialog gains a drag-and-drop
  *   zone and file picker; the handler receives the chosen File and must resolve
@@ -409,7 +409,8 @@ export default function Editor({
               <p>
                 Type these and they convert as you go: <kbd>#</kbd>–<kbd>######</kbd> for headings,{' '}
                 <kbd>&gt;</kbd> for a blockquote, <kbd>-</kbd> or <kbd>*</kbd> for a bullet list,{' '}
-                <kbd>1.</kbd> for a numbered list, <kbd>**bold**</kbd>, <kbd>*italic*</kbd>, and{' '}
+                <kbd>1.</kbd> for a numbered list, <kbd>**bold**</kbd>, <kbd>*italic*</kbd>,{' '}
+                <kbd>`code`</kbd> for inline code, <kbd>```</kbd> for a code block, and{' '}
                 <kbd>[text](url)</kbd> for links.
               </p>
             </div>
