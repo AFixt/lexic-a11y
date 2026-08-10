@@ -126,7 +126,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@75ba02d6183445fe0761d26e836bde58b1560600 # 1.1.0
+        # Pinned to the `main` HEAD this workflow was already running, NOT to
+        # the latest release. The last release (1.1.0, 2021) predates the
+        # `args` input below — it takes `others` instead, so pinning there
+        # would silently drop every flag we pass and quietly weaken the scan.
+        # Dependabot is told to leave this ref alone for the same reason; see
+        # .github/dependabot.yml.
+        uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c # main @ 2025-12-10
         with:
           project: ${{ github.repository }}
           path: "."
