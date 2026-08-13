@@ -105,11 +105,13 @@ jobs:
         with:
           category: "/language:javascript-typescript"
 
-  # OWASP Dependency Check (comprehensive - weekly only)
+  # OWASP Dependency Check (comprehensive — manual dispatch only). There is
+  # no schedule to ride: scheduled workflows are banned repo-wide (#98,
+  # CLAUDE.md). Dispatching this workflow is the periodic deep-scan sweep.
   owasp-dependency-check:
     name: OWASP Dependency Check
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -130,8 +132,10 @@ jobs:
         # the latest release. The last release (1.1.0, 2021) predates the
         # `args` input below — it takes `others` instead, so pinning there
         # would silently drop every flag we pass and quietly weaken the scan.
-        # Dependabot is told to leave this ref alone for the same reason; see
-        # .github/dependabot.yml.
+        # The Action Pin Freshness job reports this ref as "unknown" for the
+        # same reason (a branch pin has no tag to compare against) — that is
+        # deliberate, not a defect. Revisit if this action ever cuts a release
+        # newer than 1.1.0.
         uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c # main @ 2025-12-10
         with:
           project: ${{ github.repository }}
@@ -155,11 +159,12 @@ jobs:
           sarif_file: reports/dependency-check-report.sarif
         if: always()
 
-  # License compliance check
+  # License compliance check — manual dispatch only, same rationale as the
+  # OWASP job above. `npm run license:check` in check:all covers day-to-day.
   license-check:
     name: License Compliance
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -194,3 +199,37 @@ jobs:
           name: license-report
           path: licenses.json
           retention-days: 90
+
+  # Keeps the SHA pins from rotting. Dependabot used to own refreshing them
+  # (it rewrote both the SHA and the trailing `# vN.N.N` comment); Dependabot
+  # and every other scheduled automation are banned repo-wide (#98), so this
+  # check is the mechanism instead of it. A pinned SHA is immune to a
+  # hijacked tag, and equally immune to the security fixes that tag would
+  # have carried — somebody has to look, and this job is that somebody.
+  #
+  # Manual dispatch only, deliberately: a stale upstream tag has nothing to
+  # do with the pull request in front of you, and blocking on it would train
+  # people to merge past a red check. Dispatch this workflow periodically —
+  # a red run here means an upstream action moved its tag, usually to ship a
+  # fix; read the release notes and refresh the pin.
+  #
+  # No `npm ci`, deliberately: the script is dependency-free Node, and
+  # checking a workflow file should not require the private @afixt registry
+  # token. The unit-tested parsing half lives in scripts/action-pins.mjs.
+  action-pins:
+    name: Action Pin Freshness
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "lts/*"
+
+      - name: Check action pins against their tags
+        run: node scripts/check-action-pins.mjs
+        env:
+          # Raises the API rate limit from 60/hr to 5000/hr. Read-only.
+          GITHUB_TOKEN: ${{ github.token }}

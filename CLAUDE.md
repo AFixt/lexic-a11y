@@ -108,3 +108,39 @@ The ban is enforced, not just documented:
 
 To ban another package, add it to `BANNED` in `scripts/check-banned-deps.mjs`
 and add a matching `overrides` entry.
+
+## CI policy: no scheduled GitHub Actions
+
+**No GitHub Actions workflow in this repository may use a `schedule:` (cron)
+trigger, and no scheduled workflow that has been removed may be added back.**
+This is a standing constraint, not a default to be traded away for convenience.
+
+A timer-triggered check reports a problem hours or days after it entered the
+codebase, attributes it to no one, and gets ignored. The same check run against
+a pull request blocks the defect at the point of introduction.
+
+### Rules
+
+- No `on: schedule:` and no `- cron:` in any file under `.github/workflows/`.
+- No `.github/dependabot.yml` — Dependabot is a scheduled updater and is covered
+  by this policy (removed in #98). GitHub **security alerts** are event-driven
+  notifications, not scheduled jobs, and remain enabled.
+- Dependabot's one real job here — refreshing the SHA-pinned action references —
+  is owned by the `Action Pin Freshness` job in `security.yml`
+  (`npm run security:action-pins` locally). It is `workflow_dispatch` only:
+  dispatch it periodically; a red run means an upstream tag moved, usually to
+  ship a fix.
+- Every check a scheduled job would have performed runs in the pull-request
+  pipeline instead, or as an explicit `workflow_dispatch` sweep when it reports
+  upstream drift that no pull request should block on.
+- `workflow_dispatch` is allowed. A manual, on-demand run is not a scheduled
+  run.
+- Event-driven triggers (`push`, `pull_request`, `release`,
+  `repository_dispatch`, `workflow_call`) are allowed and preferred.
+- Genuinely periodic _product_ work — batch jobs, data pipelines, report
+  generation — does not belong in GitHub Actions at all. Run it on real
+  infrastructure with its own scheduler, alerting, and retries.
+
+### If you think you need an exception
+
+You do not add the cron. Raise it with the repository owner first.

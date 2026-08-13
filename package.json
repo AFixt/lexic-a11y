@@ -39,6 +39,7 @@
     "security:semgrep": "semgrep --config=p/javascript --config=p/react --config=p/owasp-top-ten --error --metrics=off",
     "security:secrets": "trufflehog git file://. --only-verified --fail",
     "security:banned-deps": "node scripts/check-banned-deps.mjs",
+    "security:action-pins": "node scripts/check-action-pins.mjs",
     "security": "npm-run-all -p security:audit security:osv security:semgrep security:secrets security:banned-deps",
     "license:check": "license-checker-rseidelsohn --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense;Python-2.0;WTFPL;BlueOak-1.0.0' --excludePrivatePackages --summary",
     "license:report": "license-checker-rseidelsohn --production --csv --out reports/licenses.csv",
