@@ -87,23 +87,25 @@ jobs:
           path: npm-audit-results.json
           retention-days: 30
 
-  # CodeQL Analysis (SAST)
-  codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
-        with:
-          languages: javascript-typescript
-          queries: security-and-quality
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
-        with:
-          category: "/language:javascript-typescript"
+  # There is deliberately no CodeQL job here (#102).
+  #
+  # CodeQL cannot store its results unless GitHub Code Security is enabled for
+  # the repository, and that is a settings-level decision that has been made
+  # the other way: Code Security stays off, with SARIF kept as a build
+  # artifact instead. The job that used to live here analysed the source
+  # successfully on every run and then failed at the upload step with
+  # "Code Security must be enabled for this repository", discarding the SARIF
+  # it had just produced.
+  #
+  # That is the exact shape of failure this repository's CI policy exists to
+  # remove: a check that cannot pass, carries no signal, and trains people to
+  # skim past a red workflow. Unlike the CodeQL job, semgrep
+  # (`npm run security:semgrep` — 110 rules over 97 files) runs locally and in
+  # `check:all`, and fails the build on findings.
+  #
+  # The same constraint rules out every SARIF upload, not just CodeQL's — see
+  # the OWASP job below, which keeps its report as an artifact. If Code
+  # Security is ever enabled, both can come back together.
 
   # OWASP Dependency Check (comprehensive - weekly only)
   owasp-dependency-check:
@@ -149,11 +151,11 @@ jobs:
           path: reports/
           retention-days: 90
 
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
-        with:
-          sarif_file: reports/dependency-check-report.sarif
-        if: always()
+      # The SARIF is deliberately NOT uploaded to GitHub Security (#102). That
+      # endpoint needs Code Security enabled, which it is not, so the upload
+      # step failed on every run while the artifact above — which contains the
+      # same SARIF — succeeded. Download the artifact and open
+      # reports/dependency-check-report.sarif in any SARIF viewer.
 
   # License compliance check
   license-check:
