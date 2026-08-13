@@ -1,0 +1,33 @@
+id: editor-word-count-live-region
+title: "Announce Word And Character Counts Politely"
+type: positive
+description: "Verify the word/character counter is a polite live region, so a screen-reader
+  user learns the count changed without the announcement interrupting their typing."
+
+preconditions:
+  - "The demo app is running (npm start)"
+  - "The editor is empty"
+
+start_location: "http://localhost:4001"
+
+expected_result: "The counter updates to reflect typed content and is announced politely"
+
+data:
+  sample_text: "Four words go here"
+  expected_count: "4 words"
+
+steps:
+  - locate: field "Editor content"
+  - focus: field "Editor content"
+  - keyboard: "{{ sample_text }}"
+
+  # The counts are debounced, so give the region time to settle before
+  # asserting on it.
+  - wait_for: text "{{ expected_count }}"
+  - verify: live_region "{{ expected_count }}"
+
+  # And it must actually reach the screen reader. `polite` is the point: an
+  # assertive counter would interrupt every few keystrokes.
+  - sr_says: '"{{ expected_count }}" within 5s'
+
+  - audit: page level "AA"

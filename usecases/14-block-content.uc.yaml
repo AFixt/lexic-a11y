@@ -1,0 +1,61 @@
+id: editor-block-content
+title: "Apply Blockquote, Code Block, Inline Code And Horizontal Rule"
+type: positive
+description: "Verify the block-level and inline-code controls that no other use case covers:
+  blockquote, code block, inline code, clear formatting, and horizontal rule — each through
+  the toolbar, asserting toggle state through aria-pressed."
+
+preconditions:
+  - "The demo app is running (npm start)"
+  - "The editor is empty"
+
+start_location: "http://localhost:4001"
+
+expected_result: "Each control reports its state through aria-pressed, and the resulting
+  document passes an automated WCAG audit"
+
+steps:
+  - locate: field "Editor content"
+  - focus: field "Editor content"
+  - keyboard: "A quoted passage"
+  - keyboard: "ControlOrMeta+a"
+
+  # Blockquote — a toggle, so it must say so.
+  - locate: button "Blockquote"
+  - focus: button "Blockquote"
+  - verify: button "Blockquote" attribute "aria-pressed" is "false"
+  - activate: button "Blockquote"
+  - verify: button "Blockquote" attribute "aria-pressed" is "true"
+
+  # Inline code on a fresh selection.
+  - focus: field "Editor content"
+  - keyboard: "ControlOrMeta+a"
+  - locate: button "Inline Code"
+  - focus: button "Inline Code"
+  - activate: button "Inline Code"
+  - verify: button "Inline Code" attribute "aria-pressed" is "true"
+
+  # Clear formatting is an action, not a toggle. Its effect is observable on
+  # the control it resets, which is the assertion worth making: inline code
+  # must report itself as no longer applied.
+  - locate: button "Clear Formatting"
+  - focus: button "Clear Formatting"
+  - activate: button "Clear Formatting"
+  - verify: button "Inline Code" attribute "aria-pressed" is "false"
+
+  # Code block.
+  - focus: field "Editor content"
+  - keyboard: "ControlOrMeta+a"
+  - locate: button "Code Block"
+  - focus: button "Code Block"
+  - activate: button "Code Block"
+  - verify: button "Code Block" attribute "aria-pressed" is "true"
+
+  # Horizontal rule — an insertion, not a toggle.
+  - focus: field "Editor content"
+  - keyboard: "End"
+  - locate: button "Insert Horizontal Rule"
+  - focus: button "Insert Horizontal Rule"
+  - activate: button "Insert Horizontal Rule"
+
+  - audit: page level "AA"
