@@ -228,8 +228,12 @@ jobs:
         with:
           node-version: "lts/*"
 
+      # `npm run`, not `node scripts/...`: the npm script is what CLAUDE.md
+      # tells a developer to run, so invoking anything else here would give
+      # the check two definitions that can drift apart. `npm run` reads
+      # package.json only — still no `npm ci`, still no registry token.
       - name: Check action pins against their tags
-        run: node scripts/check-action-pins.mjs
+        run: npm run security:action-pins
         env:
           # Raises the API rate limit from 60/hr to 5000/hr. Read-only.
           GITHUB_TOKEN: ${{ github.token }}
