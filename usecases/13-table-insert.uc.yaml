@@ -1,0 +1,54 @@
+id: editor-table-insert
+title: "Insert A Data Table With A Header Row"
+type: positive
+description: "Verify that a table can be inserted from the toolbar dialog with a header row,
+  and that the result exposes real column headers to assistive technology rather than a grid
+  of visually bold cells."
+
+preconditions:
+  - "The demo app is running (npm start)"
+  - "The editor is empty"
+
+start_location: "http://localhost:4001"
+
+expected_result: "A table is inserted whose first row is exposed as column headers in the
+  accessibility tree"
+
+data:
+  rows: "3"
+  columns: "2"
+  header_row_label: "Include header row"
+
+steps:
+  - locate: button "Insert Table"
+  - focus: button "Insert Table"
+  - activate: button "Insert Table"
+
+  - locate: dialog "Insert Table"
+  - verify: dialog "Insert Table" attribute "aria-modal" is "true"
+
+  # Audit the dialog before interacting with it
+  - audit: dialog "Insert Table" level "AA"
+
+  - locate: field "Rows"
+  - focus: field "Rows"
+  - enter: field "Rows" value "{{ rows }}"
+
+  - locate: field "Columns"
+  - focus: field "Columns"
+  - enter: field "Columns" value "{{ columns }}"
+
+  - locate: checkbox "{{ header_row_label }}"
+  - focus: checkbox "{{ header_row_label }}"
+  - verify: checked checkbox "{{ header_row_label }}"
+
+  - locate: button "Insert"
+  - focus: button "Insert"
+  - activate: button "Insert"
+
+  # The assertion that matters. A table whose header row is only visually
+  # distinct exposes zero columnheaders, so this fails exactly when the
+  # semantics regress — which a screenshot never would.
+  - verify: count columnheader is {{ columns }}
+
+  - audit: page level "AA"

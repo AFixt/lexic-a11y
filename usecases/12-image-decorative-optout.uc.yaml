@@ -1,0 +1,56 @@
+id: editor-image-decorative-optout
+title: "Mark An Image Decorative Instead Of Describing It"
+type: positive
+description: "Verify the explicit decorative opt-out: checking it releases the alt-text
+  requirement, disables the now-meaningless alt field, and inserts the image with an empty
+  alt attribute rather than a fabricated description."
+
+preconditions:
+  - "The demo app is running (npm start)"
+  - "The editor is empty"
+  - "The page carries no other images — the final step asserts the image count is zero,
+    which is how a correctly hidden decorative image presents in the accessibility tree"
+
+start_location: "http://localhost:4001"
+
+expected_result: 'With the decorative checkbox checked, Insert becomes enabled with no alt
+  text, the alt field is disabled, and the image is inserted with alt=""'
+
+data:
+  image_url: "https://REPLACE_ME.example.com/divider.png"
+  decorative_label: "This image is decorative (no alt text needed)"
+
+steps:
+  - locate: button "Insert Image"
+  - focus: button "Insert Image"
+  - activate: button "Insert Image"
+
+  - locate: dialog "Insert Image"
+
+  - locate: field "URL"
+  - focus: field "URL"
+  - enter: field "URL" value "{{ image_url }}"
+
+  # Insert stays shut while the image is neither described nor declared decorative.
+  - verify: disabled button "Insert"
+
+  - locate: checkbox "{{ decorative_label }}"
+  - focus: checkbox "{{ decorative_label }}"
+  - select: checkbox "{{ decorative_label }}"
+  - verify: checked checkbox "{{ decorative_label }}"
+
+  # The opt-out is a real state change, not a label: the alt field goes disabled
+  # and stops claiming to be required.
+  - verify: disabled field "Alt Text"
+  - verify: field "Alt Text" attribute "aria-required" is "false"
+  - verify: enabled button "Insert"
+
+  - locate: button "Insert"
+  - focus: button "Insert"
+  - activate: button "Insert"
+
+  # A decorative image must be hidden from assistive technology, so it must NOT
+  # appear as a named image in the accessibility tree.
+  - verify: count image is 0
+
+  - audit: page level "AA"
