@@ -8,7 +8,9 @@ module.exports = {
     '\\.(css|less|scss|sass)$': '<rootDir>/jest.styleMock.js',
   },
   transform: {
-    '^.+\\.(js|jsx)$': 'babel-jest',
+    // .mjs so src/tests/action-pins.test.js can import the pure helpers from
+    // scripts/action-pins.mjs (ESM) under the CommonJS jest runtime.
+    '^.+\\.(js|jsx|mjs)$': 'babel-jest',
   },
   // The @afixt packages (and their uuid dependency) ship ESM only —
   // let babel-jest transpile them
