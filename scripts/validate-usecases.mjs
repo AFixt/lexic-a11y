@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 // Validate every use-case YAML in usecases/ against @afixt/usecase-runner.
 //
-// Why a script rather than `usecase-runner validate usecases/`: in directory
-// mode the runner prints the first "Validation error" and then exits 0, so a
-// broken use case would pass CI silently — a gate that cannot fail is no gate
-// (#107). Single-file mode exits non-zero correctly, so we validate each file
-// individually and aggregate, and additionally treat any "error" in the output
-// as a failure as a belt-and-suspenders backstop.
+// Why a script rather than one CLI call: `usecase-runner validate` takes a
+// single positional <path>. Passing a directory works and exits non-zero on the
+// first invalid file, but the form the README once used —
+// `usecase-runner validate usecases/*.uc.yaml` — shell-globs to many arguments,
+// of which the runner silently accepts only the first and drops the rest. If
+// that first (alphabetically-first) file is valid, the command reports success
+// and exits 0 while never looking at the other files — a gate that cannot fail
+// is no gate (#107). Driving the CLI one file at a time sidesteps that entirely
+// and reports every failure rather than stopping at the first.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.join(root, 'usecases');
 
@@ -29,9 +34,12 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-// Resolve the CLI from the installed package so this works whether or not
-// node_modules/.bin is on PATH.
-const bin = path.join(root, 'node_modules', '@afixt', 'usecase-runner', 'bin', 'usecase-runner.js');
+// Resolve the CLI from the installed package's `bin` field rather than assuming
+// a fixed node_modules layout, so a hoisting change doesn't break this silently.
+const pkgJson = require.resolve('@afixt/usecase-runner/package.json');
+const pkg = require('@afixt/usecase-runner/package.json');
+const binField = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin['usecase-runner'];
+const bin = path.resolve(path.dirname(pkgJson), binField);
 
 let failed = 0;
 for (const file of files) {
@@ -44,10 +52,13 @@ for (const file of files) {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (err) {
+    // Non-zero exit is the primary signal (reliable for single-file validate).
     ok = false;
     output = `${err.stdout ?? ''}${err.stderr ?? ''}`;
   }
-  if (/\berror\b/i.test(output)) ok = false;
+  // Backstop only against the runner's own error phrasing, so a success message
+  // that merely contains the word "error" (e.g. "0 errors") can't flip a pass.
+  if (/Validation error|Unknown (step keyword|role token)/i.test(output)) ok = false;
   if (ok) {
     console.log(`ok    ${rel}`);
   } else {

@@ -17,7 +17,9 @@ expected_result: "Insert is disabled while alt text is missing, becomes enabled 
 data:
   image_url: "https://REPLACE_ME.example.com/photo.png"
   alt_text: "A red bicycle leaning against a brick wall"
-  # The text of the hint the alt field's aria-describedby points at.
+  # The alt field's hint: the element id its aria-describedby points at, and the
+  # hint copy that element renders.
+  alt_hint_id: "image-alt-hint"
   alt_hint: "Describe the image for screen reader users, or mark it as decorative."
 
 steps:
@@ -38,12 +40,11 @@ steps:
   - verify: field "URL" attribute "aria-required" is "true"
   - locate: field "Alt Text"
   - verify: field "Alt Text" attribute "aria-required" is "true"
-  # The alt field is programmatically associated with a hint via
-  # aria-describedby. runner 1.5.1 has no attribute-presence check (only
-  # `attribute "x" is "y"`), so assert the hint the association points at is
-  # actually rendered — the visible half of the wiring. Asserting the
-  # association itself needs an upstream `attribute "x" present`; see
-  # usecases/README.md.
+  # The alt field is programmatically associated with its hint. The hint id is a
+  # static string, so assert the association directly — this fails if
+  # aria-describedby is dropped or repointed — and also that the hint copy it
+  # points at is actually rendered.
+  - verify: field "Alt Text" attribute "aria-describedby" is "{{ alt_hint_id }}"
   - verify: text "{{ alt_hint }}"
 
   # A URL alone is not enough — the gate is alt text.

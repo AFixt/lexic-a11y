@@ -86,6 +86,13 @@ an upstream runner feature:
 - **`sr_says` timeouts** — the `within <n>s` clause is not supported; `sr_says`
   already polls the spoken-phrase log, so `16` and `17` drop it.
 
+These use cases are machine-**validated** in CI (`npm run validate:usecases`)
+but not yet machine-**run**: runner 1.5.1 compiles a `keyboard:` step's literal
+text to one `page.keyboard.press()` per token, which throws at run time for
+anything that isn't a key name. That is suite-wide (any use case that types text
+into the editor) and tracked in #115; until it is fixed upstream,
+`generate --run` cannot execute the suite.
+
 ## Accessible names these depend on
 
 Use cases address controls by accessible name, all defined in
@@ -138,7 +145,9 @@ All eighteen use cases in this directory pass validation (runner v1.5.1).
 `npm run validate:usecases` validates every file and is run on each pull request
 by the **Validate use cases** job in `.github/workflows/ci.yml`
 (`@afixt/usecase-runner` is a `devDependency`, installed with the org
-`NPM_TOKEN` like the other private `@afixt` packages). The script validates each
-file individually rather than passing the directory, because
-`usecase-runner validate <dir>` prints the first error and then exits 0 — a gate
-that cannot fail is no gate (#107).
+`NPM_TOKEN` like the other private `@afixt` packages). The script drives the CLI
+one file at a time, because `usecase-runner validate` takes a single `<path>`:
+the glob form `usecase-runner validate usecases/*.uc.yaml` shell-expands to many
+arguments, of which the runner silently accepts only the first and drops the
+rest — so a broken file after the first would never be checked. A gate that
+cannot fail is no gate (#107).
