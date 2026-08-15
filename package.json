@@ -74,7 +74,7 @@
   },
   "homepage": "https://github.com/AFixt/lexic-a11y#readme",
   "engines": {
-    "node": ">=20.0.0",
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
     "npm": ">=10.0.0"
   },
   "peerDependencies": {
