@@ -90,6 +90,26 @@ jobs:
           path: npm-audit-results.json
           retention-days: 30
 
+  # SAST gate. Semgrep is the static-analysis gate here, replacing CodeQL (see
+  # the note below). Unlike CodeQL it needs no GitHub Code Security to store
+  # results, and `--error` fails the build on findings rather than uploading to
+  # an API that is turned off (#116).
+  semgrep:
+    name: Semgrep (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Semgrep
+        # pipx is preinstalled on GitHub's ubuntu runners. Semgrep is a Python
+        # tool that scans source directly, so this job needs no npm install.
+        run: pipx install semgrep
+
+      - name: Run Semgrep
+        # Same config as local `npm run security:semgrep` and check:all
+        # (p/javascript, p/react, p/owasp-top-ten; --error fails on findings).
+        run: npm run security:semgrep
+
   # CodeQL Analysis (SAST) is intentionally NOT run here. codeql-action/analyze
   # uploads its results to GitHub Code Scanning as its final step, which fails
   # with "Code Security must be enabled for this repository" — Code Security is
@@ -97,15 +117,10 @@ jobs:
   # a wasted run: the analysis completes and is then discarded at the upload, and
   # because this job was not dispatch-gated it reddened every pull request. A
   # check that cannot pass carries no signal and trains reviewers to skim past a
-  # red workflow. See AFixt/a11y-mcp#138, which removed its CodeQL job for the
-  # same reason. Re-add this job only if GitHub Code Security is enabled.
-  #
-  # Honest caveat: this leaves no SAST gate running in CI today. Semgrep
-  # (`npm run security:semgrep`, installed by scripts/bootstrap.sh) is the
-  # intended replacement — it needs no Code Security and, unlike CodeQL, fails
-  # the build on findings — but it is not yet wired into a workflow or check:all,
-  # and currently has one finding to resolve first. Wiring it in is tracked in
-  # #116.
+  # red workflow. The `semgrep` job above is the SAST gate instead — it runs on
+  # every push and pull request and fails the build on findings. See
+  # AFixt/a11y-mcp#138, which removed its CodeQL job for the same reason. Re-add
+  # this job only if GitHub Code Security is enabled.
 
   # OWASP Dependency Check (comprehensive — manual dispatch only). There is
   # no schedule to ride: scheduled workflows are banned repo-wide (#98,
