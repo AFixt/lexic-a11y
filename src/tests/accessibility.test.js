@@ -152,12 +152,21 @@ const withPageChrome = (component) => (
 // genuine A/AA regression failing (a dropped accessible name still trips the
 // automatic FORMS rules) while advisory candidates no longer gate the build.
 //
-// Advisory (auto_assisted/manual) candidates for behaviours worth watching —
-// decorative-image opt-out, the live region itself — stay covered by the
-// use-case suite (usecases/) and the component tests, and text-contrast /
-// focus-indication (unevaluable under jsdom, which loads no stylesheets) by the
-// real-browser Playwright checks in e2e/editor.spec.js. (This repo bans
+// This narrows what THIS suite hard-gates. Two Level-A checks that are
+// classified auto_assisted — NON-TEXT-CONTENT-01 (missing alt) and FORMS-08
+// (missing visible label) — used to gate here and no longer do; that trade-off
+// is the issue's chosen option (#101). Those specific behaviours stay covered by
+// the component/unit tests (ImageNode.test.js asserts alt/decorative handling,
+// ToolbarPlugin.test.js the toolbar controls), and text-contrast /
+// focus-indication — unevaluable under jsdom, which loads no stylesheets — by
+// the real-browser Playwright checks in e2e/editor.spec.js. (This repo bans
 // axe-core, so those are Playwright assertions, not an axe scan — see CLAUDE.md.)
+// The use-case suite (usecases/) documents these interactions but is
+// validation-only in CI, so it is not a substitute gate.
+//
+// The guard test at the end of this file pins the point of all this: the
+// automatic-only gate must still FAIL on a genuine A/AA violation, not quietly
+// pass everything.
 const expectAccessible = async (element) => {
   const results = await runAccessibilityTests(element, [], {
     returnResults: true,
@@ -217,5 +226,23 @@ describe('accessibility assertions (a11y-assert)', () => {
     expect(screen.queryAllByRole('navigation')).toHaveLength(0);
 
     await expectAccessible(document.body);
+  });
+
+  // Guard test — the discriminating half of the gate. The four cases above only
+  // prove the gate PASSES clean UI; none prove it still FAILS a real violation.
+  // Without this, a change that made the filter drop every rule (a typo in the
+  // engineOptions, an upstream reclassification of the FORMS rules) would leave
+  // the suite green and the gate silently inert. An unlabeled control trips the
+  // automatic FORMS rules (FORMS-09/FORMS-28, WCAG Level A), so this must find at
+  // least one violation.
+  it('still fails on a genuine A/AA violation (an unlabeled control)', async () => {
+    renderWithI18n(withPageChrome(<input type="text" />));
+
+    const results = await runAccessibilityTests(document.body, [], {
+      returnResults: true,
+      engineOptions: { type: 'automatic' },
+    });
+
+    expect(results.length).toBeGreaterThan(0);
   });
 });
