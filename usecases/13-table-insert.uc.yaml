@@ -18,6 +18,10 @@ data:
   rows: "3"
   columns: "2"
   header_row_label: "Include header row"
+  # Header-cell labels. The header row is inserted empty, so name each header
+  # cell to give its columnheader an accessible name that can be asserted.
+  header_1: "Name"
+  header_2: "Email"
 
 steps:
   - locate: button "Insert Table"
@@ -46,9 +50,19 @@ steps:
   - focus: button "Insert"
   - activate: button "Insert"
 
-  # The assertion that matters. A table whose header row is only visually
-  # distinct exposes zero columnheaders, so this fails exactly when the
-  # semantics regress — which a screenshot never would.
-  - verify: count columnheader is {{ columns }}
+  # Insertion lands the caret in the first header cell. Name each header cell so
+  # its columnheader semantics can be asserted by accessible name — runner 1.5.1
+  # has no `columnheader` role token and its `count` needs a named target, so a
+  # nameless "count columnheader is N" is not yet expressible (see
+  # usecases/README.md).
+  - keyboard: "{{ header_1 }}"
+  - keyboard: "Tab"
+  - keyboard: "{{ header_2 }}"
+
+  # The assertion that matters. A header row that is only visually bold exposes
+  # zero columnheaders; finding each named header as a columnheader fails
+  # exactly when the semantics regress — which a screenshot never would.
+  - verify: count role "columnheader" name "{{ header_1 }}" is 1
+  - verify: count role "columnheader" name "{{ header_2 }}" is 1
 
   - audit: page level "AA"

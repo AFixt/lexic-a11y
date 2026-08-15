@@ -28,6 +28,6 @@ steps:
 
   # And it must actually reach the screen reader. `polite` is the point: an
   # assertive counter would interrupt every few keystrokes.
-  - sr_says: '"{{ expected_count }}" within 5s'
+  - sr_says: '"{{ expected_count }}"'
 
   - audit: page level "AA"

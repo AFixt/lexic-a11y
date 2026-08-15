@@ -49,8 +49,11 @@ steps:
   - focus: button "Insert"
   - activate: button "Insert"
 
-  # A decorative image must be hidden from assistive technology, so it must NOT
-  # appear as a named image in the accessibility tree.
-  - verify: count image is 0
-
+  # A decorative image must be hidden from assistive technology: it renders
+  # alt="" role="presentation" and so exposes NO img-role node. Asserting that
+  # directly needs a nameless "count image is 0" — runner 1.5.1's `count`
+  # requires a named target, so this outcome is not yet expressible (see
+  # usecases/README.md). The opt-out mechanics above (checkbox checked, alt
+  # field disabled and no longer required, Insert enabled) and the page audit
+  # below remain the coverage until an upstream nameless-count lands.
   - audit: page level "AA"

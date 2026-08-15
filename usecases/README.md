@@ -35,14 +35,18 @@ verifies the control semantics, not just the visual result.
 Several of these assert on the accessibility tree rather than on appearance,
 which is the point of writing them here rather than as unit tests:
 
-- `12` asserts the decorative image count is **zero** — that is how `alt=""`
-  plus `role="presentation"` presents to assistive technology.
-- `13` asserts the `columnheader` count, so a header row that is only visually
+- `13` names each header cell and then asserts each is exposed as a
+  `columnheader` by its accessible name, so a header row that is only visually
   bold fails.
-- `17` asserts the outline is a named list and contributes **no** landmark, so
-  the panel cannot start restructuring the host page.
+- `17` asserts the outline is a named list, so a screen-reader user can identify
+  what they have landed in.
 - `18` asserts markdown shortcuts produce real headings and lists, not text that
   merely looks like them.
+
+Some intended tree assertions cannot be expressed in the runner's current
+grammar and are recorded under
+[Runner grammar limitations](#runner-grammar-limitations) below rather than
+faked into passing.
 
 ## Not covered, and why
 
@@ -55,6 +59,32 @@ without ever exercising `PastePlugin`. A template that cannot fail is worse than
 none. This is a candidate for an upstream `paste:` keyword rather than a
 workaround — see #104. Paste behaviour is covered by the Jest suite in the
 meantime.
+
+### Runner grammar limitations
+
+`@afixt/usecase-runner` 1.5.1 — the version this suite is pinned to and the
+newest published — cannot express a few assertions these use cases want. Rather
+than hack them into validating (a template that cannot fail is worse than none),
+the expressible half is asserted and the gap is recorded here as a candidate for
+an upstream runner feature:
+
+- **Nameless counts** — `count <role> is N`. The `count` verb requires a _named_
+  target (`count role "columnheader" name "Name" is 1`), so "count of **all**
+  images/columnheaders/landmarks" cannot be written:
+  - `12` wants `count image is 0` to prove a decorative image exposes no
+    img-role node. It asserts the opt-out mechanics (checkbox checked, alt field
+    disabled and no longer required, Insert enabled) and a page audit instead.
+  - `13` wants `count columnheader is <columns>`. It names each header cell and
+    asserts each named cell is a `columnheader`, which is stronger per-header
+    but does not assert the total.
+  - `17` wants `count navigation is 0` to prove the outline adds no landmark. It
+    asserts the positive half (the outline _is_ a named list) instead.
+- **Attribute presence** — `attribute "x" present`. The DSL only has
+  `attribute "x" is "y"`, so `11` cannot assert that the alt field is associated
+  with a hint via `aria-describedby`; it asserts the hint text the association
+  points at is rendered instead.
+- **`sr_says` timeouts** — the `within <n>s` clause is not supported; `sr_says`
+  already polls the spoken-phrase log, so `16` and `17` drop it.
 
 ## Accessible names these depend on
 
@@ -94,12 +124,21 @@ npx playwright install chromium
 # http://localhost:4001, the `start_location` every use case declares
 npm start
 
-# Validate the YAML
-npx usecase-runner validate usecases/*.uc.yaml
+# Validate the YAML (from this repo, the gate script fails on any invalid file)
+npm run validate:usecases
 
 # Generate Playwright tests and run them
 npx usecase-runner generate usecases/*.uc.yaml --outdir ./tests/generated --run
 ```
 
-All eighteen use cases in this directory pass `npx usecase-runner validate`
-(v1.5.1).
+All eighteen use cases in this directory pass validation (runner v1.5.1).
+
+## Validation gate
+
+`npm run validate:usecases` validates every file and is run on each pull request
+by the **Validate use cases** job in `.github/workflows/ci.yml`
+(`@afixt/usecase-runner` is a `devDependency`, installed with the org
+`NPM_TOKEN` like the other private `@afixt` packages). The script validates each
+file individually rather than passing the directory, because
+`usecase-runner validate <dir>` prints the first error and then exits 0 — a gate
+that cannot fail is no gate (#107).
