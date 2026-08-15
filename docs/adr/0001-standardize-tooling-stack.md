@@ -35,9 +35,13 @@ We adopt the tooling listed in issue #14 with the following scope constraints:
 - **jscpd threshold raised from 1% to 5%** to tolerate small, pre-existing
   shared code; sandbox/examples/root demo files are excluded from the
   duplication scan.
-- **Security CVE scans (osv-scanner, semgrep) run manually or on schedule**, not
-  as part of `check:all`. The existing dev-only vulnerabilities in Parcel's
-  transitive dependencies would otherwise block every push.
+- **Security scans:** `semgrep` (SAST) runs in `check:all` and as a PR-time CI
+  job; `osv-scanner` still runs manually / on dispatch. _Amended: both were
+  originally kept out of `check:all` because dev-only vulnerabilities in
+  Parcel's transitive dependencies would have blocked every push. Parcel was
+  removed (#108), voiding that rationale, so semgrep was wired into the gate
+  (#116). osv-scanner stays manual for now — it covers dependency CVEs rather
+  than static analysis._
 - **`@afixt/a11y-assert`, Lighthouse CI, Playwright, React Compiler** are
   deferred. The first is testing-related (out of scope); the others are
   application concerns that do not fit a library.
