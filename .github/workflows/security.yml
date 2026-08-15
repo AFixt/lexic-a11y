@@ -8,8 +8,11 @@ on:
   workflow_dispatch:
 
 permissions:
+  # Only `contents: read` is needed. `security-events: write` was required to
+  # upload CodeQL/SARIF results to GitHub Code Scanning, but those steps have
+  # been removed — Code Security is off by decision here (#102). Restore the
+  # scope alongside those steps if Code Security is ever enabled.
   contents: read
-  security-events: write
 
 jobs:
   # Secret scanning — fails on verified secrets
@@ -87,23 +90,22 @@ jobs:
           path: npm-audit-results.json
           retention-days: 30
 
-  # CodeQL Analysis (SAST)
-  codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
-        with:
-          languages: javascript-typescript
-          queries: security-and-quality
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
-        with:
-          category: "/language:javascript-typescript"
+  # CodeQL Analysis (SAST) is intentionally NOT run here. codeql-action/analyze
+  # uploads its results to GitHub Code Scanning as its final step, which fails
+  # with "Code Security must be enabled for this repository" — Code Security is
+  # off by decision in favour of artifact-based SARIF gating (#102). Worse than
+  # a wasted run: the analysis completes and is then discarded at the upload, and
+  # because this job was not dispatch-gated it reddened every pull request. A
+  # check that cannot pass carries no signal and trains reviewers to skim past a
+  # red workflow. See AFixt/a11y-mcp#138, which removed its CodeQL job for the
+  # same reason. Re-add this job only if GitHub Code Security is enabled.
+  #
+  # Honest caveat: this leaves no SAST gate running in CI today. Semgrep
+  # (`npm run security:semgrep`, installed by scripts/bootstrap.sh) is the
+  # intended replacement — it needs no Code Security and, unlike CodeQL, fails
+  # the build on findings — but it is not yet wired into a workflow or check:all,
+  # and currently has one finding to resolve first. Wiring it in is tracked in
+  # #116.
 
   # OWASP Dependency Check (comprehensive — manual dispatch only). There is
   # no schedule to ride: scheduled workflows are banned repo-wide (#98,
@@ -153,11 +155,12 @@ jobs:
           path: reports/
           retention-days: 90
 
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
-        with:
-          sarif_file: reports/dependency-check-report.sarif
-        if: always()
+      # The SARIF is deliberately NOT uploaded to GitHub Code Security: that API
+      # also requires Code Security to be enabled and would fail here (#102),
+      # even under `if: always()`. The `Upload OWASP results` step above already
+      # preserves reports/ — SARIF included — as a downloadable artifact; open it
+      # in any SARIF viewer. Restore a github/codeql-action/upload-sarif step
+      # here if Code Security is ever enabled.
 
   # License compliance check — manual dispatch only, same rationale as the
   # OWASP job above. `npm run license:check` in check:all covers day-to-day.
