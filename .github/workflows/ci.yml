@@ -218,3 +218,31 @@ jobs:
           npm test
         env:
           CI: true
+
+  usecases:
+    # Validate every usecases/*.uc.yaml against @afixt/usecase-runner on each
+    # PR. The suite was authored and maintained but never machine-checked, so
+    # nothing caught use cases drifting from the runner's grammar (#107). This
+    # is a PR-time gate, not a scheduled job — scheduled Actions are banned
+    # repo-wide (#98).
+    name: Validate use cases
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        # @afixt/usecase-runner is a private @afixt-scoped package; the org
+        # NPM_TOKEN is what authenticates the install, same as every other job.
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Validate use case YAML against @afixt/usecase-runner
+        run: npm run validate:usecases

@@ -37,7 +37,9 @@ steps:
   - focus: field "Editor content"
   - keyboard: "Enter"
   - keyboard: "- {{ list_item_text }}"
-  - verify: count listitem is 1
+  # runner 1.5.1 has no `listitem` role token and its `count` needs a named
+  # target, so the list item is counted by its accessible name (its own text).
+  - verify: count role "listitem" name "{{ list_item_text }}" is 1
   - verify: button "Bullet List" attribute "aria-pressed" is "true"
 
   # '> ' must produce a real blockquote.
