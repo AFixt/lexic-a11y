@@ -79,10 +79,6 @@ an upstream runner feature:
     but does not assert the total.
   - `17` wants `count navigation is 0` to prove the outline adds no landmark. It
     asserts the positive half (the outline _is_ a named list) instead.
-- **Attribute presence** — `attribute "x" present`. The DSL only has
-  `attribute "x" is "y"`, so `11` cannot assert that the alt field is associated
-  with a hint via `aria-describedby`; it asserts the hint text the association
-  points at is rendered instead.
 - **`sr_says` timeouts** — the `within <n>s` clause is not supported; `sr_says`
   already polls the spoken-phrase log, so `16` and `17` drop it.
 
