@@ -105,9 +105,17 @@ jump to the first and last control.
 
 ### Prerequisites
 
-- Node.js — `package.json` requires v20+, but the repo pins **v22** in `.nvmrc`
-  / `.node-version` (and CI runs `lts/*`). Use 22: the `@afixt/a11y-assert` test
-  dependency declares `engines.node >= 22`.
+- Node.js — `package.json` declares `engines.node` as
+  `^22.22.2 || ^24.15.0 || >=26.0.0`, the real floor of the dev toolchain
+  (`@afixt/a11y-assert` → `@afixt/test-utils` needs ≥ 22.22.2). `.nvmrc` /
+  `.node-version` pin **22.22.2** and CI runs the current LTS (`lts/*`, Node 24)
+  plus a dedicated Node 22.22.2 floor job. With `engine-strict=true` in
+  `.npmrc`, an out-of-range Node makes `npm ci` fail hard (`EBADENGINE`), not
+  just warn. Note this floor is driven by the **test tooling**, not the shipped
+  runtime: the published bundle (`dist/`) is a browser React library and doesn't
+  itself need Node 22 — a consumer with `engine-strict` on an older Node will
+  nonetheless be refused the install, a deliberate, conservative trade-off
+  (#109).
 - npm v10+ (enforced via `engine-strict=true` in `.npmrc`)
 - React (v16.8+, v17.0.0+, or v18.0.0+ for Hooks support)
 - Homebrew (macOS/Linux) — used by the bootstrap script to install security
@@ -424,9 +432,10 @@ We welcome contributions from the community! If you'd like to contribute:
 > **Accessibility test tooling:** `npm test` runs automated WCAG assertions via
 > [`@afixt/a11y-assert`](https://www.npmjs.com/package/@afixt/a11y-assert), a
 > first-party Afixt dev dependency. It declares `engines.node >= 22`, so run the
-> test suite on Node 22+ (the version CI uses); Node 20 only emits an
-> `EBADENGINE` warning. It is a `devDependency` and is not part of the published
-> package or its production `license:check`.
+> test suite on Node 22.22.2+ (the version CI uses); with `engine-strict=true`
+> an out-of-range Node fails `npm ci` hard (`EBADENGINE`), it does not merely
+> warn. It is a `devDependency` and is not part of the published package or its
+> production `license:check`.
 >
 > **`axe-core` is banned in this project**, directly and transitively. A
 > `package.json` `overrides` entry resolves it to an empty stub so it can never

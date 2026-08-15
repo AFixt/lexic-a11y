@@ -1,0 +1,42 @@
+id: editor-toolbar-roving-focus
+title: "Traverse The Toolbar As A Single Tab Stop With Roving Focus"
+type: positive
+description: "Verify the toolbar implements the WAI-ARIA toolbar pattern: one tab stop,
+  arrow keys move focus between controls, and Home/End jump to the first and last control.
+  Without this, reaching the last toolbar button costs a keyboard user dozens of tabs."
+
+preconditions:
+  - "The demo app is running (npm start)"
+
+start_location: "http://localhost:4001"
+
+expected_result: "Focus enters the toolbar once, moves with arrow keys, and Home/End reach
+  the first and last controls"
+
+steps:
+  # The toolbar is a named toolbar in the accessibility tree, not an unlabelled
+  # div of buttons.
+  - locate: region "Editor Toolbar"
+
+  - locate: button "Undo"
+  - focus: button "Undo"
+  - verify: focus button "Undo"
+
+  # Arrow keys move focus within the toolbar.
+  - keyboard: "ArrowRight"
+  - verify: focus button "Redo"
+  - keyboard: "ArrowLeft"
+  - verify: focus button "Undo"
+
+  # End and Home reach the extremes without traversing everything between.
+  - keyboard: "End"
+  - verify: focus button "Show Help"
+  - keyboard: "Home"
+  - verify: focus button "Undo"
+
+  # The single-tab-stop half of the pattern: one Tab from the first control
+  # leaves the toolbar entirely rather than landing on the second button.
+  - keyboard: "Tab"
+  - verify: focus field "Editor content"
+
+  - audit: page level "AA"

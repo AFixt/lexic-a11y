@@ -15,10 +15,10 @@ jobs:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -44,7 +44,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload duplication report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: jscpd-report
           path: reports/jscpd/
@@ -55,10 +55,10 @@ jobs:
     name: TypeScript Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -86,10 +86,10 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -126,10 +126,10 @@ jobs:
       matrix:
         react: ["18", "19"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -184,3 +184,65 @@ jobs:
         run: npm run test:dist
         env:
           CI: true
+
+  engines-floor:
+    # engines.node declares a floor of 22.22.2 — the real lockfile-derived
+    # minimum, bound by @afixt/test-utils (^22.22.2 || ^24.15.0 || >=26.0.0).
+    # Every other job runs on lts/* (Node 24), so nothing exercises that floor;
+    # a floor never installed against is aspirational, not verified (#109). Pin
+    # Node to the exact declared minimum and prove a clean `npm ci` succeeds
+    # under .npmrc's engine-strict=true, with no EBADENGINE — so widening or
+    # raising the floor stays honest.
+    name: Install on declared Node floor (22.22.2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js 22.22.2 (engines.node floor)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.22.2"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Clean install on the floor (engine-strict must not EBADENGINE)
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Build and test on the floor
+        # Build and the test suite both run at the declared minimum, so a
+        # test-time-only dependency on a newer Node would surface here too.
+        run: |
+          npm run build
+          npm test
+        env:
+          CI: true
+
+  usecases:
+    # Validate every usecases/*.uc.yaml against @afixt/usecase-runner on each
+    # PR. The suite was authored and maintained but never machine-checked, so
+    # nothing caught use cases drifting from the runner's grammar (#107). This
+    # is a PR-time gate, not a scheduled job — scheduled Actions are banned
+    # repo-wide (#98).
+    name: Validate use cases
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        # @afixt/usecase-runner is a private @afixt-scoped package; the org
+        # NPM_TOKEN is what authenticates the install, same as every other job.
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Validate use case YAML against @afixt/usecase-runner
+        run: npm run validate:usecases

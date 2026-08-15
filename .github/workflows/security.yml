@@ -8,8 +8,11 @@ on:
   workflow_dispatch:
 
 permissions:
+  # Only `contents: read` is needed. `security-events: write` was required to
+  # upload CodeQL/SARIF results to GitHub Code Scanning, but those steps have
+  # been removed — Code Security is off by decision here (#102). Restore the
+  # scope alongside those steps if Code Security is ever enabled.
   contents: read
-  security-events: write
 
 jobs:
   # Secret scanning — fails on verified secrets
@@ -17,7 +20,7 @@ jobs:
     name: Secret Scan (TruffleHog)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
@@ -34,10 +37,10 @@ jobs:
     name: Banned Dependencies
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -59,10 +62,10 @@ jobs:
     name: NPM Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -81,40 +84,56 @@ jobs:
         run: npm audit --json > npm-audit-results.json || true
 
       - name: Upload audit results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: npm-audit-results
           path: npm-audit-results.json
           retention-days: 30
 
-  # CodeQL Analysis (SAST)
-  codeql:
-    name: CodeQL Analysis
+  # SAST gate. Semgrep is the static-analysis gate here, replacing CodeQL (see
+  # the note below). Unlike CodeQL it needs no GitHub Code Security to store
+  # results, and `--error` fails the build on findings rather than uploading to
+  # an API that is turned off (#116).
+  semgrep:
+    name: Semgrep (SAST)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-          queries: security-and-quality
+      - name: Install Semgrep
+        # pipx is preinstalled on GitHub's ubuntu runners. Semgrep is a Python
+        # tool that scans source directly, so this job needs no npm install.
+        run: pipx install semgrep
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript-typescript"
+      - name: Run Semgrep
+        # Same config as local `npm run security:semgrep` and check:all
+        # (p/javascript, p/react, p/owasp-top-ten; --error fails on findings).
+        run: npm run security:semgrep
 
-  # OWASP Dependency Check (comprehensive - weekly only)
+  # CodeQL Analysis (SAST) is intentionally NOT run here. codeql-action/analyze
+  # uploads its results to GitHub Code Scanning as its final step, which fails
+  # with "Code Security must be enabled for this repository" — Code Security is
+  # off by decision in favour of artifact-based SARIF gating (#102). Worse than
+  # a wasted run: the analysis completes and is then discarded at the upload, and
+  # because this job was not dispatch-gated it reddened every pull request. A
+  # check that cannot pass carries no signal and trains reviewers to skim past a
+  # red workflow. The `semgrep` job above is the SAST gate instead — it runs on
+  # every push and pull request and fails the build on findings. See
+  # AFixt/a11y-mcp#138, which removed its CodeQL job for the same reason. Re-add
+  # this job only if GitHub Code Security is enabled.
+
+  # OWASP Dependency Check (comprehensive — manual dispatch only). There is
+  # no schedule to ride: scheduled workflows are banned repo-wide (#98,
+  # CLAUDE.md). Dispatching this workflow is the periodic deep-scan sweep.
   owasp-dependency-check:
     name: OWASP Dependency Check
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -126,7 +145,15 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
+        # Pinned to the `main` HEAD this workflow was already running, NOT to
+        # the latest release. The last release (1.1.0, 2021) predates the
+        # `args` input below — it takes `others` instead, so pinning there
+        # would silently drop every flag we pass and quietly weaken the scan.
+        # The Action Pin Freshness job reports this ref as "unknown" for the
+        # same reason (a branch pin has no tag to compare against) — that is
+        # deliberate, not a defect. Revisit if this action ever cuts a release
+        # newer than 1.1.0.
+        uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c # main @ 2025-12-10
         with:
           project: ${{ github.repository }}
           path: "."
@@ -137,28 +164,30 @@ jobs:
             --nodePackageSkipDevDependencies false
 
       - name: Upload OWASP results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: owasp-dependency-check-report
           path: reports/
           retention-days: 90
 
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: reports/dependency-check-report.sarif
-        if: always()
+      # The SARIF is deliberately NOT uploaded to GitHub Code Security: that API
+      # also requires Code Security to be enabled and would fail here (#102),
+      # even under `if: always()`. The `Upload OWASP results` step above already
+      # preserves reports/ — SARIF included — as a downloadable artifact; open it
+      # in any SARIF viewer. Restore a github/codeql-action/upload-sarif step
+      # here if Code Security is ever enabled.
 
-  # License compliance check
+  # License compliance check — manual dispatch only, same rationale as the
+  # OWASP job above. `npm run license:check` in check:all covers day-to-day.
   license-check:
     name: License Compliance
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -183,8 +212,46 @@ jobs:
           license-checker --failOn 'GPL;AGPL;UNKNOWN' || echo "Review licenses above"
 
       - name: Upload license report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: license-report
           path: licenses.json
           retention-days: 90
+
+  # Keeps the SHA pins from rotting. Dependabot used to own refreshing them
+  # (it rewrote both the SHA and the trailing `# vN.N.N` comment); Dependabot
+  # and every other scheduled automation are banned repo-wide (#98), so this
+  # check is the mechanism instead of it. A pinned SHA is immune to a
+  # hijacked tag, and equally immune to the security fixes that tag would
+  # have carried — somebody has to look, and this job is that somebody.
+  #
+  # Manual dispatch only, deliberately: a stale upstream tag has nothing to
+  # do with the pull request in front of you, and blocking on it would train
+  # people to merge past a red check. Dispatch this workflow periodically —
+  # a red run here means an upstream action moved its tag, usually to ship a
+  # fix; read the release notes and refresh the pin.
+  #
+  # No `npm ci`, deliberately: the script is dependency-free Node, and
+  # checking a workflow file should not require the private @afixt registry
+  # token. The unit-tested parsing half lives in scripts/action-pins.mjs.
+  action-pins:
+    name: Action Pin Freshness
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "lts/*"
+
+      # `npm run`, not `node scripts/...`: the npm script is what CLAUDE.md
+      # tells a developer to run, so invoking anything else here would give
+      # the check two definitions that can drift apart. `npm run` reads
+      # package.json only — still no `npm ci`, still no registry token.
+      - name: Check action pins against their tags
+        run: npm run security:action-pins
+        env:
+          # Raises the API rate limit from 60/hr to 5000/hr. Read-only.
+          GITHUB_TOKEN: ${{ github.token }}

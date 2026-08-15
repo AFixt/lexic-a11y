@@ -1,0 +1,70 @@
+id: editor-table-insert
+title: "Insert A Data Table With A Header Row"
+type: positive
+description: "Verify that a table can be inserted from the toolbar dialog with a header row,
+  and that the result exposes real column headers to assistive technology rather than a grid
+  of visually bold cells."
+
+preconditions:
+  - "The demo app is running (npm start)"
+  - "The editor is empty"
+
+start_location: "http://localhost:4001"
+
+expected_result: "A table is inserted whose first row is exposed as column headers in the
+  accessibility tree"
+
+data:
+  rows: "3"
+  columns: "2"
+  header_row_label: "Include header row"
+  # Header-cell labels. The header row is inserted empty, so name each header
+  # cell to give its columnheader an accessible name that can be asserted.
+  header_1: "Name"
+  header_2: "Email"
+
+steps:
+  - locate: button "Insert Table"
+  - focus: button "Insert Table"
+  - activate: button "Insert Table"
+
+  - locate: dialog "Insert Table"
+  - verify: dialog "Insert Table" attribute "aria-modal" is "true"
+
+  # Audit the dialog before interacting with it
+  - audit: dialog "Insert Table" level "AA"
+
+  - locate: field "Rows"
+  - focus: field "Rows"
+  - enter: field "Rows" value "{{ rows }}"
+
+  - locate: field "Columns"
+  - focus: field "Columns"
+  - enter: field "Columns" value "{{ columns }}"
+
+  - locate: checkbox "{{ header_row_label }}"
+  - focus: checkbox "{{ header_row_label }}"
+  - verify: checked checkbox "{{ header_row_label }}"
+
+  - locate: button "Insert"
+  - focus: button "Insert"
+  - activate: button "Insert"
+
+  # Name each header cell so its columnheader semantics can be asserted by
+  # accessible name — runner 1.5.1 has no `columnheader` role token and its
+  # `count` needs a named target, so a nameless "count columnheader is N" is not
+  # expressible (see usecases/README.md). Table insertion lands the caret in the
+  # first header cell and Tab moves between cells (both confirmed in @lexical/table),
+  # but note runner 1.5.1 compiles `keyboard:` literal text to per-token key
+  # presses, so these typed names do not yet execute at run time — see #115.
+  - keyboard: "{{ header_1 }}"
+  - keyboard: "Tab"
+  - keyboard: "{{ header_2 }}"
+
+  # The assertion that matters. A header row that is only visually bold exposes
+  # zero columnheaders; finding each named header as a columnheader fails
+  # exactly when the semantics regress — which a screenshot never would.
+  - verify: count role "columnheader" name "{{ header_1 }}" is 1
+  - verify: count role "columnheader" name "{{ header_2 }}" is 1
+
+  - audit: page level "AA"

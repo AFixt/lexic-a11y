@@ -1,0 +1,54 @@
+id: editor-document-outline-warnings
+title: "Warn Politely About A Skipped Heading Level In The Outline"
+type: positive
+description: "Verify the live document outline lists the document's headings as a named list
+  and reports a skipped heading level as a politely announced warning that is not conveyed by
+  colour alone."
+
+preconditions:
+  - "The demo app is running (npm start) — the demo mounts the editor with showOutline"
+  - "The editor is empty"
+
+start_location: "http://localhost:4001"
+
+expected_result: "The outline lists both headings, and skipping from H1 to H3 produces a
+  politely announced warning naming the levels involved"
+
+data:
+  h1_text: "Chapter One"
+  h3_text: "A Subsection"
+  skip_warning: "Heading level skipped: h1 is followed by h3"
+
+steps:
+  - locate: field "Editor content"
+  - focus: field "Editor content"
+
+  # An H1 followed directly by an H3 — the exact defect the outline exists to
+  # surface while it is still cheap to fix.
+  - keyboard: "{{ h1_text }}"
+  - keyboard: "ControlOrMeta+Alt+1"
+  - keyboard: "Enter"
+  - keyboard: "{{ h3_text }}"
+  - keyboard: "ControlOrMeta+Alt+3"
+
+  # The outline is a named list, so a screen reader user can identify what they
+  # have landed in. It is deliberately not a landmark — this panel belongs to
+  # one form control and must not restructure the host page.
+  # It is a named list, and deliberately NOT a landmark — this panel belongs to
+  # one form control and must not restructure the host page (#88). The positive
+  # half is asserted here; the "no navigation landmark" half needs a nameless
+  # "count navigation is 0", which runner 1.5.1's named-target `count` cannot
+  # express (see usecases/README.md).
+  - locate: role "list" name "Document Outline"
+
+  # Both headings appear as activatable outline entries.
+  - locate: button "H1 {{ h1_text }}"
+  - locate: button "H3 {{ h3_text }}"
+
+  # The warning is announced politely rather than interrupting typing, and it
+  # carries a text prefix so it does not rely on the colour of the row.
+  - wait_for: text "{{ skip_warning }}"
+  - verify: 'live_region "Warning: {{ skip_warning }}"'
+  - sr_says: '"{{ skip_warning }}"'
+
+  - audit: page level "AA"

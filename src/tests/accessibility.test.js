@@ -134,23 +134,45 @@ const withPageChrome = (component) => (
   </main>
 );
 
-// Rules that cannot produce meaningful results under jsdom and are therefore
-// excluded here. jsdom loads no stylesheets, so anything judged from computed
-// CSS is unevaluable — every element looks unstyled.
-// - KEYBOARD-01: focus indication. Covered instead by the real-browser focus
-//   indicator tests in e2e/editor.spec.js, which measure the computed
-//   indicator and its contrast in Chromium. Text colour contrast (SC 1.4.3)
-//   is likewise unevaluable here and covered by the real-browser contrast
-//   tests in the same file. (Note: this repo bans axe-core, so those are
-//   Playwright assertions, not an axe scan — see CLAUDE.md.)
-// - NAVIGATION-08: site-level rule (search facility/sitemap) — not applicable
-//   to an embeddable component under test, and covered nowhere else.
-const JSDOM_INAPPLICABLE_RULES = new Set(['KEYBOARD-01', 'NAVIGATION-08']);
-
+// The build gate runs only the engine's `automatic` rules — the machine-
+// decidable checks. @afixt/afixt-engine classifies every rule by `type`:
+// `automatic` results are confirmed violations, while `auto_assisted`, `manual`
+// and `ai_assisted` results are *candidates for human verification* (the rules
+// say so in their own `manualVerification` text), not confirmed failures. An
+// advisory candidate that a person still has to judge must not hard-fail CI, so
+// we ask the runner to load only automatic rules (engineOptions.type).
+//
+// This is a root-cause fix, not a per-rule allowlist: any advisory rule — now
+// or added upstream later — is excluded by construction. The case that
+// prompted it (#101) is TIMEOUTS-04 (WCAG 2.2.4 Interruptions, Level AAA),
+// which from @afixt/afixt-tests 1.35.x flags the polite word-count live region
+// (`role="status" aria-live="polite"`) as an auto_assisted candidate — a
+// correct candidate but not a violation: a status the user causes by typing is
+// the opposite of an unrequested interruption. Filtering by type keeps a
+// genuine A/AA regression failing (a dropped accessible name still trips the
+// automatic FORMS rules) while advisory candidates no longer gate the build.
+//
+// This narrows what THIS suite hard-gates. Two Level-A checks that are
+// classified auto_assisted — NON-TEXT-CONTENT-01 (missing alt) and FORMS-08
+// (missing visible label) — used to gate here and no longer do; that trade-off
+// is the issue's chosen option (#101). Those specific behaviours stay covered by
+// the component/unit tests (ImageNode.test.js asserts alt/decorative handling,
+// ToolbarPlugin.test.js the toolbar controls), and text-contrast /
+// focus-indication — unevaluable under jsdom, which loads no stylesheets — by
+// the real-browser Playwright checks in e2e/editor.spec.js. (This repo bans
+// axe-core, so those are Playwright assertions, not an axe scan — see CLAUDE.md.)
+// The use-case suite (usecases/) documents these interactions but is
+// validation-only in CI, so it is not a substitute gate.
+//
+// The guard test at the end of this file pins the point of all this: the
+// automatic-only gate must still FAIL on a genuine A/AA violation, not quietly
+// pass everything.
 const expectAccessible = async (element) => {
-  const results = await runAccessibilityTests(element, [], { returnResults: true });
-  const applicable = results.filter((violation) => !JSDOM_INAPPLICABLE_RULES.has(violation.ruleId));
-  expect(applicable).toEqual([]);
+  const results = await runAccessibilityTests(element, [], {
+    returnResults: true,
+    engineOptions: { type: 'automatic' },
+  });
+  expect(results).toEqual([]);
 };
 
 describe('accessibility assertions (a11y-assert)', () => {
@@ -204,5 +226,23 @@ describe('accessibility assertions (a11y-assert)', () => {
     expect(screen.queryAllByRole('navigation')).toHaveLength(0);
 
     await expectAccessible(document.body);
+  });
+
+  // Guard test — the discriminating half of the gate. The four cases above only
+  // prove the gate PASSES clean UI; none prove it still FAILS a real violation.
+  // Without this, a change that made the filter drop every rule (a typo in the
+  // engineOptions, an upstream reclassification of the FORMS rules) would leave
+  // the suite green and the gate silently inert. An unlabeled control trips the
+  // automatic FORMS rules (FORMS-09/FORMS-28, WCAG Level A), so this must find at
+  // least one violation.
+  it('still fails on a genuine A/AA violation (an unlabeled control)', async () => {
+    renderWithI18n(withPageChrome(<input type="text" />));
+
+    const results = await runAccessibilityTests(document.body, [], {
+      returnResults: true,
+      engineOptions: { type: 'automatic' },
+    });
+
+    expect(results.length).toBeGreaterThan(0);
   });
 });

@@ -1,0 +1,52 @@
+id: editor-markdown-shortcuts
+title: "Format As You Type With Markdown Shortcuts"
+type: positive
+description: "Verify the markdown shortcut path produces the same real semantics as the
+  toolbar: typing '# ' yields a level-1 heading, '- ' yields a list, and '> ' yields a
+  blockquote — not merely text that looks like them."
+
+preconditions:
+  - "The demo app is running (npm start)"
+  - "The editor is empty"
+
+start_location: "http://localhost:4001"
+
+expected_result: "Markdown shortcuts produce headings, lists and blockquotes that appear in
+  the accessibility tree with the correct roles and levels"
+
+data:
+  heading_text: "Typed As Markdown"
+  list_item_text: "First bullet"
+
+steps:
+  - locate: field "Editor content"
+  - focus: field "Editor content"
+
+  # '# ' must produce a real heading, not 18px bold text. A markdown shortcut
+  # that only restyles is an accessibility regression that looks correct in a
+  # screenshot.
+  - keyboard: "# {{ heading_text }}"
+  - verify: heading "{{ heading_text }}"
+  - locate: heading "{{ heading_text }}"
+
+  # The toolbar must agree — the control reflects the state the shortcut
+  # produced, so keyboard and toolbar cannot drift apart.
+  - verify: button "H1" attribute "aria-pressed" is "true"
+
+  # '- ' must produce a real list.
+  - focus: field "Editor content"
+  - keyboard: "Enter"
+  - keyboard: "- {{ list_item_text }}"
+  # runner 1.5.1 has no `listitem` role token and its `count` needs a named
+  # target, so the list item is counted by its accessible name (its own text).
+  - verify: count role "listitem" name "{{ list_item_text }}" is 1
+  - verify: button "Bullet List" attribute "aria-pressed" is "true"
+
+  # '> ' must produce a real blockquote.
+  - focus: field "Editor content"
+  - keyboard: "Enter"
+  - keyboard: "Enter"
+  - keyboard: "> A quoted line"
+  - verify: button "Blockquote" attribute "aria-pressed" is "true"
+
+  - audit: page level "AA"

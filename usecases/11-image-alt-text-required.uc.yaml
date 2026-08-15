@@ -1,0 +1,66 @@
+id: editor-image-alt-text-required
+title: "Insert An Image, Which Cannot Be Inserted Without Alt Text"
+type: positive
+description: "Verify that the image dialog refuses to insert until the author supplies alt
+  text, that the alt field is marked required and has a programmatic hint, and that a
+  described image is inserted with its accessible name."
+
+preconditions:
+  - "The demo app is running (npm start)"
+  - "The editor is empty"
+
+start_location: "http://localhost:4001"
+
+expected_result: "Insert is disabled while alt text is missing, becomes enabled once alt
+  text is entered, and the inserted image exposes that alt text as its accessible name"
+
+data:
+  image_url: "https://REPLACE_ME.example.com/photo.png"
+  alt_text: "A red bicycle leaning against a brick wall"
+  # The alt field's hint: the element id its aria-describedby points at, and the
+  # hint copy that element renders.
+  alt_hint_id: "image-alt-hint"
+  alt_hint: "Describe the image for screen reader users, or mark it as decorative."
+
+steps:
+  - locate: button "Insert Image"
+  - focus: button "Insert Image"
+  - activate: button "Insert Image"
+
+  - locate: dialog "Insert Image"
+  - verify: dialog "Insert Image" attribute "aria-modal" is "true"
+
+  # Audit the dialog before interacting with it
+  - audit: dialog "Insert Image" level "AA"
+
+  # Both fields advertise that they are required, and the alt field points at
+  # its hint. This is the wiring that makes the requirement perceivable rather
+  # than merely enforced.
+  - locate: field "URL"
+  - verify: field "URL" attribute "aria-required" is "true"
+  - locate: field "Alt Text"
+  - verify: field "Alt Text" attribute "aria-required" is "true"
+  # The alt field is programmatically associated with its hint. The hint id is a
+  # static string, so assert the association directly — this fails if
+  # aria-describedby is dropped or repointed — and also that the hint copy it
+  # points at is actually rendered.
+  - verify: field "Alt Text" attribute "aria-describedby" is "{{ alt_hint_id }}"
+  - verify: text "{{ alt_hint }}"
+
+  # A URL alone is not enough — the gate is alt text.
+  - focus: field "URL"
+  - enter: field "URL" value "{{ image_url }}"
+  - verify: disabled button "Insert"
+
+  - locate: field "Alt Text"
+  - focus: field "Alt Text"
+  - enter: field "Alt Text" value "{{ alt_text }}"
+  - verify: enabled button "Insert"
+
+  - locate: button "Insert"
+  - focus: button "Insert"
+  - activate: button "Insert"
+
+  # The alt text becomes the image's accessible name.
+  - locate: image "{{ alt_text }}"
+  - audit: page level "AA"
