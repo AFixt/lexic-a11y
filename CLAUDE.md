@@ -123,8 +123,9 @@ a pull request blocks the defect at the point of introduction.
 
 - No `on: schedule:` and no `- cron:` in any file under `.github/workflows/`.
 - No `.github/dependabot.yml` — Dependabot is a scheduled updater and is covered
-  by this policy (removed in #98). GitHub **security alerts** are event-driven
-  notifications, not scheduled jobs, and remain enabled.
+  by this policy (removed in #98). Dependabot **security alerts** and
+  **automated security fixes** are switched off at the repository level
+  too — verified by API on 2026-08-16.
 - Dependabot's one real job here — refreshing the SHA-pinned action references —
   is owned by the `Action Pin Freshness` job in `security.yml`
   (`npm run security:action-pins` locally). It is `workflow_dispatch` only:
