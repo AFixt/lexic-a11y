@@ -17,7 +17,7 @@ expected_result: "Each control reports its state through aria-pressed, and the r
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "A quoted passage"
+  - type: "A quoted passage"
   - keyboard: "ControlOrMeta+a"
 
   # Blockquote — a toggle, so it must say so.

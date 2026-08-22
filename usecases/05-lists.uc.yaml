@@ -17,7 +17,7 @@ expected_result: "Content converts to semantic list markup and the corresponding
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "First item"
+  - type: "First item"
 
   # Bullet list via toolbar
   - locate: button "Bullet List"

@@ -25,7 +25,7 @@ steps:
   # '# ' must produce a real heading, not 18px bold text. A markdown shortcut
   # that only restyles is an accessibility regression that looks correct in a
   # screenshot.
-  - keyboard: "# {{ heading_text }}"
+  - type: "# {{ heading_text }}"
   - verify: heading "{{ heading_text }}"
   - locate: heading "{{ heading_text }}"
 
@@ -36,8 +36,9 @@ steps:
   # '- ' must produce a real list.
   - focus: field "Editor content"
   - keyboard: "Enter"
-  - keyboard: "- {{ list_item_text }}"
-  # runner 1.5.1 has no `listitem` role token and its `count` needs a named
+  - type: "- {{ list_item_text }}"
+  # runner 1.5.1 had no `listitem` role token (recorded against 1.5.1; not
+  # re-verified on 2.0.1 — see usecases/README.md) and its `count` needs a named
   # target, so the list item is counted by its accessible name (its own text).
   - verify: count role "listitem" name "{{ list_item_text }}" is 1
   - verify: button "Bullet List" attribute "aria-pressed" is "true"
@@ -46,7 +47,7 @@ steps:
   - focus: field "Editor content"
   - keyboard: "Enter"
   - keyboard: "Enter"
-  - keyboard: "> A quoted line"
+  - type: "> A quoted line"
   - verify: button "Blockquote" attribute "aria-pressed" is "true"
 
   - audit: page level "AA"
