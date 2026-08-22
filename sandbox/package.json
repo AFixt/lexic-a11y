@@ -1,6 +1,7 @@
 {
   "name": "lexic-a11y-sandbox",
   "version": "1.0.0",
+  "private": true,
   "description": "CodeSandbox demo for lexic-a11y",
   "main": "src/index.js",
   "scripts": {
