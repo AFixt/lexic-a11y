@@ -17,7 +17,7 @@ expected_result: 'Each formatting toggle applies to the selected text and report
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "Format me"
+  - type: "Format me"
   - keyboard: "ControlOrMeta+a"
 
   # Bold

@@ -52,6 +52,7 @@ steps:
   # A decorative image must be hidden from assistive technology: it renders
   # alt="" role="presentation" and so exposes NO img-role node. Asserting that
   # directly needs a nameless "count image is 0" — runner 1.5.1's `count`
+  # (recorded against 1.5.1; not re-verified on 2.0.1 — see usecases/README.md)
   # requires a named target, so this outcome is not yet expressible (see
   # usecases/README.md). The opt-out mechanics above (checkbox checked, alt
   # field disabled and no longer required, Insert enabled) and the page audit

@@ -19,7 +19,7 @@ data:
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "lexical"
+  - type: "lexical"
   - keyboard: "ControlOrMeta+a"
 
   - locate: button "Insert Link"

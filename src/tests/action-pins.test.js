@@ -93,3 +93,68 @@ describe('classifyPin', () => {
     expect(classifyPin(pinned, undefined)).toMatchObject({ kind: 'unknown' });
   });
 });
+
+describe('parseActionPins — reference forms that used to be mis-parsed (#124)', () => {
+  const sha = '11d5960a326750d5838078e36cf38b85af677262';
+
+  it.each([
+    ['double-quoted', `      - uses: "actions/checkout@${sha}" # v4.4.0`],
+    ['single-quoted', `      - uses: 'actions/checkout@${sha}' # v4.4.0`],
+  ])('keeps a %s reference instead of dropping it', (_label, line) => {
+    const pins = parseActionPins(line, 'ci.yml');
+
+    expect(pins).toHaveLength(1);
+    expect(pins[0]).toMatchObject({ owner: 'actions', repo: 'checkout', sha, tag: 'v4.4.0' });
+  });
+
+  it('parses a quoted, unpinned reference without the quote bleeding into the ref', () => {
+    const pins = parseActionPins(`      - uses: "actions/checkout@v4"`, 'ci.yml');
+
+    expect(pins[0].ref).toBe('v4');
+  });
+
+  it('recognises an uppercase SHA and stores it lowercased so it compares equal upstream', () => {
+    const pins = parseActionPins(
+      `      - uses: actions/checkout@${sha.toUpperCase()} # v4.4.0`,
+      'ci.yml',
+    );
+
+    expect(pins[0].sha).toBe(sha);
+    expect(classifyPin(pins[0], sha)).toEqual({ kind: 'current' });
+  });
+
+  it('skips a local action reference that carries an @ref', () => {
+    expect(parseActionPins('      - uses: ./.github/actions/setup@v1', 'ci.yml')).toHaveLength(0);
+  });
+
+  it('skips a local action reference without an @ref', () => {
+    expect(parseActionPins('      - uses: ./.github/actions/setup', 'ci.yml')).toHaveLength(0);
+  });
+
+  it('skips a docker:// reference', () => {
+    expect(parseActionPins('      - uses: docker://alpine:3.20', 'ci.yml')).toHaveLength(0);
+  });
+});
+
+describe('classifyPin — unresolved tag detail (#124)', () => {
+  const pinned = {
+    file: 'ci.yml',
+    line: 1,
+    owner: 'actions',
+    repo: 'checkout',
+    sha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    tag: 'v6',
+    ref: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  };
+
+  it('includes the failure (e.g. HTTP status) so a 403 and a 404 read differently', () => {
+    expect(classifyPin(pinned, undefined, 'HTTP 403')).toEqual({
+      kind: 'unknown',
+      reason: 'tag "v6" could not be resolved upstream (HTTP 403)',
+    });
+  });
+
+  it('omits the parenthetical when no failure detail is supplied', () => {
+    expect(classifyPin(pinned, undefined).reason).toBe('tag "v6" could not be resolved upstream');
+  });
+});
