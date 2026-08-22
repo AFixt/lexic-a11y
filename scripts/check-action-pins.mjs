@@ -14,7 +14,9 @@
  * against. References that cannot be checked (no SHA, no tag comment, or a
  * branch pin like Dependency-Check_Action's deliberate `main` pin) are
  * reported as unknown and do not fail the run: "we could not check" and
- * "this is out of date" warrant different responses.
+ * "this is out of date" warrant different responses. The corollary: a run in
+ * which every pin is unknown has verified nothing, and still exits 0 — read
+ * the reasons (an HTTP 401/403 on all of them means the token, not the pins).
  *
  * Env vars:
  *   GITHUB_TOKEN — raises the API rate limit from 60/hr to 5000/hr. Optional

@@ -70,10 +70,15 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/i;
  * are excluded explicitly below: `./x/y@v1` would otherwise parse with
  * owner `.` and cost an API lookup against a repository that does not exist.
  */
-const USES_PATTERN =
-  /^\s*(?:-\s+)?uses:\s*(?<quote>["']?)(?<owner>[\w.-]+)\/(?<repo>[\w.-]+)(?<subpath>\/[\w./-]+)?@(?<ref>[^\s#"']+)\k<quote>\s*(?:#\s*(?<tag>\S+))?/;
+/** The part of a `uses:` line before the reference, shared by both patterns. */
+const USES_PREFIX = String.raw`^\s*(?:-\s+)?uses:\s*`;
 
-const LOCAL_PATTERN = /^\s*(?:-\s+)?uses:\s*["']?\.\//;
+const USES_PATTERN = new RegExp(
+  USES_PREFIX +
+    String.raw`(?<quote>["']?)(?<owner>[\w.-]+)\/(?<repo>[\w.-]+)(?<subpath>\/[\w./-]+)?@(?<ref>[^\s#"']+)\k<quote>\s*(?:#\s*(?<tag>\S+))?`,
+);
+
+const LOCAL_PATTERN = new RegExp(USES_PREFIX + String.raw`["']?\.\/`);
 
 /**
  * Pull every action reference out of one workflow file's text.

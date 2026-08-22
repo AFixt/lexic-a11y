@@ -107,7 +107,7 @@ describe('parseActionPins — reference forms that used to be mis-parsed (#124)'
     expect(pins[0]).toMatchObject({ owner: 'actions', repo: 'checkout', sha, tag: 'v4.4.0' });
   });
 
-  it('does not let a stray quote bleed into the ref', () => {
+  it('parses a quoted, unpinned reference without the quote bleeding into the ref', () => {
     const pins = parseActionPins(`      - uses: "actions/checkout@v4"`, 'ci.yml');
 
     expect(pins[0].ref).toBe('v4');
