@@ -17,7 +17,7 @@ expected_result: 'The block converts to the chosen heading level and the toolbar
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "Document title"
+  - type: "Document title"
 
   # Toolbar path (H1; H2-H6 buttons follow the identical pattern)
   - locate: button "H1"

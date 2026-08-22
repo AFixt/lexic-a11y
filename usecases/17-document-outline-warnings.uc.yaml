@@ -25,10 +25,10 @@ steps:
 
   # An H1 followed directly by an H3 — the exact defect the outline exists to
   # surface while it is still cheap to fix.
-  - keyboard: "{{ h1_text }}"
+  - type: "{{ h1_text }}"
   - keyboard: "ControlOrMeta+Alt+1"
   - keyboard: "Enter"
-  - keyboard: "{{ h3_text }}"
+  - type: "{{ h3_text }}"
   - keyboard: "ControlOrMeta+Alt+3"
 
   # The outline is a named list, so a screen reader user can identify what they

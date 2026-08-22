@@ -17,7 +17,7 @@ expected_result: 'Formatting applies without any pointer interaction and the cor
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "Keyboard only formatting"
+  - type: "Keyboard only formatting"
   - keyboard: "ControlOrMeta+a"
 
   - keyboard: "ControlOrMeta+b"

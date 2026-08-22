@@ -19,7 +19,7 @@ data:
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "{{ sample_text }}"
+  - type: "{{ sample_text }}"
 
   # The counts are debounced, so give the region time to settle before
   # asserting on it.

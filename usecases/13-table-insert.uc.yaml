@@ -54,12 +54,10 @@ steps:
   # accessible name — runner 1.5.1 has no `columnheader` role token and its
   # `count` needs a named target, so a nameless "count columnheader is N" is not
   # expressible (see usecases/README.md). Table insertion lands the caret in the
-  # first header cell and Tab moves between cells (both confirmed in @lexical/table),
-  # but note runner 1.5.1 compiles `keyboard:` literal text to per-token key
-  # presses, so these typed names do not yet execute at run time — see #115.
-  - keyboard: "{{ header_1 }}"
+  # first header cell and Tab moves between cells (both confirmed in @lexical/table).
+  - type: "{{ header_1 }}"
   - keyboard: "Tab"
-  - keyboard: "{{ header_2 }}"
+  - type: "{{ header_2 }}"
 
   # The assertion that matters. A header row that is only visually bold exposes
   # zero columnheaders; finding each named header as a columnheader fails

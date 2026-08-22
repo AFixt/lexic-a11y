@@ -15,7 +15,7 @@ expected_result: "Deleted content is restored by undo and removed again by redo"
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "Keep me safe"
+  - type: "Keep me safe"
   - verify: text "Keep me safe"
 
   # Destructive edit

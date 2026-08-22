@@ -23,5 +23,5 @@ steps:
 
   # With content present
   - focus: field "Editor content"
-  - keyboard: "Audit me"
+  - type: "Audit me"
   - audit: page level "AA"

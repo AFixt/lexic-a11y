@@ -53,7 +53,7 @@ faked into passing.
 **Paste sanitization and paste-as-plain-text (`Ctrl/Cmd+Shift+V`).** The editor
 sanitizes markup pasted from Word and Google Docs, and `Ctrl/Cmd+Shift+V` forces
 a plain-text paste. Neither can be expressed here: the `@afixt/usecase-runner`
-DSL (v1.5.1) has no clipboard or paste verb, and faking one through raw
+DSL (v2.0.1) has no clipboard or paste verb, and faking one through raw
 `keyboard:` steps would not populate `clipboardData`, so the template would pass
 without ever exercising `PastePlugin`. A template that cannot fail is worse than
 none. This is a candidate for an upstream `paste:` keyword rather than a
@@ -62,7 +62,7 @@ meantime.
 
 ### Runner grammar limitations
 
-`@afixt/usecase-runner` 1.5.1 — the version this suite is pinned to and the
+`@afixt/usecase-runner` 2.0.1 — the version this suite is pinned to and the
 newest published — cannot express a few assertions these use cases want. Rather
 than hack them into validating (a template that cannot fail is worse than none),
 the expressible half is asserted and the gap is recorded here as a candidate for
@@ -82,12 +82,16 @@ an upstream runner feature:
 - **`sr_says` timeouts** — the `within <n>s` clause is not supported; `sr_says`
   already polls the spoken-phrase log, so `16` and `17` drop it.
 
-These use cases are machine-**validated** in CI (`npm run validate:usecases`)
-but not yet machine-**run**: runner 1.5.1 compiles a `keyboard:` step's literal
-text to one `page.keyboard.press()` per token, which throws at run time for
-anything that isn't a key name. That is suite-wide (any use case that types text
-into the editor) and tracked in #115; until it is fixed upstream,
-`generate --run` cannot execute the suite.
+These use cases are machine-**validated** in CI (`npm run validate:usecases`).
+Literal text is entered with `type:`; `keyboard:` is reserved for key names
+(`Tab`, `Enter`, `ControlOrMeta+b`). Runner 1.x silently compiled a `keyboard:`
+step's literal text to one key press per token (#115); 2.0 rejects that form at
+validation, which is what forced the `type:` migration in #125.
+
+Runner 2.0.1 also validates a nameless `count image is 0`. The named-target
+limitations above were recorded against 1.5.1 and have not been re-verified
+against 2.0.1 — revisiting them (and the role tokens `columnheader` and
+`listitem`) is follow-up work, not part of the 2.0 bump.
 
 ## Accessible names these depend on
 
@@ -134,7 +138,7 @@ npm run validate:usecases
 npx usecase-runner generate usecases/*.uc.yaml --outdir ./tests/generated --run
 ```
 
-All eighteen use cases in this directory pass validation (runner v1.5.1).
+All eighteen use cases in this directory pass validation (runner v2.0.1).
 
 ## Validation gate
 

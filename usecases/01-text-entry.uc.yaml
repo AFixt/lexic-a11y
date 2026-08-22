@@ -15,5 +15,5 @@ expected_result: "The typed text appears in the editor content area"
 steps:
   - locate: field "Editor content"
   - focus: field "Editor content"
-  - keyboard: "Hello accessible world"
+  - type: "Hello accessible world"
   - verify: text "Hello accessible world"
