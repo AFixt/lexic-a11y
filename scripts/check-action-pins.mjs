@@ -48,30 +48,38 @@ function headers() {
  *
  * Annotated tags resolve to a tag object rather than a commit, so those need
  * a second hop to get the commit a workflow would actually check out. Returns
- * undefined for anything unresolvable; the caller reports that as unknown
- * rather than treating it as drift.
+ * `{ failure }` for anything unresolvable; the caller reports that as unknown
+ * rather than treating it as drift, and prints the failure so a 404 (tag
+ * gone) and a 403 (rate limited — unauthenticated callers get 60/hr) are
+ * distinguishable in the output (#124).
  *
  * @param {string} slug `owner/repo`.
  * @param {string} tag The tag name from the pin's trailing comment.
- * @returns {Promise<string | undefined>} The commit SHA, if resolvable.
+ * @returns {Promise<{sha?: string, failure?: string}>} The commit SHA, or why not.
  */
 async function resolveTag(slug, tag) {
-  const res = await fetch(`${API}/repos/${slug}/git/ref/tags/${encodeURIComponent(tag)}`, {
-    headers: headers(),
-  });
-  if (!res.ok) return undefined;
+  try {
+    const res = await fetch(`${API}/repos/${slug}/git/ref/tags/${encodeURIComponent(tag)}`, {
+      headers: headers(),
+    });
+    if (!res.ok) return { failure: `HTTP ${res.status}` };
 
-  const ref = await res.json();
-  if (!ref.object?.sha) return undefined;
-  if (ref.object.type !== 'tag') return ref.object.sha;
+    const ref = await res.json();
+    if (!ref.object?.sha) return { failure: 'no object in ref response' };
+    if (ref.object.type !== 'tag') return { sha: ref.object.sha };
 
-  const deref = await fetch(`${API}/repos/${slug}/git/tags/${ref.object.sha}`, {
-    headers: headers(),
-  });
-  if (!deref.ok) return undefined;
+    const deref = await fetch(`${API}/repos/${slug}/git/tags/${ref.object.sha}`, {
+      headers: headers(),
+    });
+    if (!deref.ok) return { failure: `HTTP ${deref.status} dereferencing annotated tag` };
 
-  const annotated = await deref.json();
-  return annotated.object?.sha;
+    const annotated = await deref.json();
+    return annotated.object?.sha
+      ? { sha: annotated.object.sha }
+      : { failure: 'annotated tag has no target' };
+  } catch (err) {
+    return { failure: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /**
@@ -123,7 +131,8 @@ async function main() {
   const unknown = [];
 
   for (const pin of pins) {
-    const status = classifyPin(pin, resolved.get(`${repoSlug(pin)}@${pin.tag}`));
+    const lookup = resolved.get(`${repoSlug(pin)}@${pin.tag}`) ?? {};
+    const status = classifyPin(pin, lookup.sha, lookup.failure);
     const where = `${pin.file}:${pin.line}`;
 
     if (status.kind === 'current') {
