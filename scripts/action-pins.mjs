@@ -48,17 +48,37 @@
  * could not be resolved.
  */
 
-const SHA_PATTERN = /^[0-9a-f]{40}$/;
+/**
+ * Case-insensitive on purpose: Git accepts an uppercase SHA and so does
+ * `uses:`. The stored `sha` is lowercased at parse time so it compares equal
+ * to the lowercase SHA the GitHub API answers with — with `i` alone an
+ * uppercase pin would pass this test and then be reported stale against
+ * itself (#124).
+ */
+const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 
 /**
  * `uses: owner/repo[/subpath]@ref [# tag]`
  *
- * Local (`./.github/actions/x`) and Docker (`docker://`) references have no
- * upstream tag to compare against and are skipped by the leading owner/repo
- * requirement.
+ * The reference is an ordinary YAML scalar, so it may be wrapped in single or
+ * double quotes; the optional quote pair is matched and discarded. Without
+ * that, a quoted reference did not match at all and vanished from the report
+ * rather than being listed as unknown (#124).
+ *
+ * Docker (`docker://`) references have no upstream tag to compare against
+ * and cannot match the owner/repo shape. Local references (`./.github/...`)
+ * are excluded explicitly below: `./x/y@v1` would otherwise parse with
+ * owner `.` and cost an API lookup against a repository that does not exist.
  */
-const USES_PATTERN =
-  /^\s*(?:-\s+)?uses:\s*(?<owner>[\w.-]+)\/(?<repo>[\w.-]+)(?<subpath>\/[\w./-]+)?@(?<ref>[^\s#]+)\s*(?:#\s*(?<tag>\S+))?/;
+/** The part of a `uses:` line before the reference, shared by both patterns. */
+const USES_PREFIX = String.raw`^\s*(?:-\s+)?uses:\s*`;
+
+const USES_PATTERN = new RegExp(
+  USES_PREFIX +
+    String.raw`(?<quote>["']?)(?<owner>[\w.-]+)\/(?<repo>[\w.-]+)(?<subpath>\/[\w./-]+)?@(?<ref>[^\s#"']+)\k<quote>\s*(?:#\s*(?<tag>\S+))?`,
+);
+
+const LOCAL_PATTERN = new RegExp(USES_PREFIX + String.raw`["']?\.\/`);
 
 /**
  * Pull every action reference out of one workflow file's text.
@@ -71,6 +91,8 @@ export function parseActionPins(text, file) {
   const pins = [];
 
   text.split('\n').forEach((rawLine, index) => {
+    if (LOCAL_PATTERN.test(rawLine)) return;
+
     const match = rawLine.match(USES_PATTERN);
     if (!match?.groups) return;
 
@@ -83,7 +105,7 @@ export function parseActionPins(text, file) {
       repo,
       ref,
       // A tag comment on an unpinned ref is noise; only record it with a SHA.
-      ...(SHA_PATTERN.test(ref) ? { sha: ref } : {}),
+      ...(SHA_PATTERN.test(ref) ? { sha: ref.toLowerCase() } : {}),
       ...(tag ? { tag } : {}),
     });
   });
@@ -97,13 +119,16 @@ export function parseActionPins(text, file) {
  * `resolvedSha` is undefined when the tag could not be resolved — a deleted
  * tag, a branch name in the comment, or a rate-limited API call. That is
  * reported as unknown rather than stale, because "we could not check" and
- * "this is out of date" warrant different responses.
+ * "this is out of date" warrant different responses. `failure`, when the
+ * caller has one, is appended to the reason so a 404 on a deleted tag and a
+ * 403 from the rate limiter stop reading identically (#124).
  *
  * @param {ActionPin} pin The parsed reference.
  * @param {string | undefined} resolvedSha What the tag points at today.
+ * @param {string} [failure] Why resolution failed, e.g. `HTTP 403`.
  * @returns {PinStatus} How the pin compares.
  */
-export function classifyPin(pin, resolvedSha) {
+export function classifyPin(pin, resolvedSha, failure) {
   if (!pin.sha) {
     return {
       kind: 'unknown',
@@ -119,7 +144,8 @@ export function classifyPin(pin, resolvedSha) {
   }
 
   if (!resolvedSha) {
-    return { kind: 'unknown', reason: `tag "${pin.tag}" could not be resolved upstream` };
+    const detail = failure ? ` (${failure})` : '';
+    return { kind: 'unknown', reason: `tag "${pin.tag}" could not be resolved upstream${detail}` };
   }
 
   return resolvedSha === pin.sha ? { kind: 'current' } : { kind: 'stale', expected: resolvedSha };
