@@ -51,7 +51,8 @@ steps:
   - activate: button "Insert"
 
   # Name each header cell so its columnheader semantics can be asserted by
-  # accessible name — runner 1.5.1 has no `columnheader` role token and its
+  # accessible name — runner 1.5.1 had no `columnheader` role token (recorded against 1.5.1; not
+  # re-verified on 2.0.1 — see usecases/README.md) and its
   # `count` needs a named target, so a nameless "count columnheader is N" is not
   # expressible (see usecases/README.md). Table insertion lands the caret in the
   # first header cell and Tab moves between cells (both confirmed in @lexical/table).

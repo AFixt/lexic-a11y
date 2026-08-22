@@ -37,7 +37,8 @@ steps:
   # It is a named list, and deliberately NOT a landmark — this panel belongs to
   # one form control and must not restructure the host page (#88). The positive
   # half is asserted here; the "no navigation landmark" half needs a nameless
-  # "count navigation is 0", which runner 1.5.1's named-target `count` cannot
+  # "count navigation is 0", which runner 1.5.1's named-target `count` (recorded
+  # against 1.5.1; not re-verified on 2.0.1 — see usecases/README.md) cannot
   # express (see usecases/README.md).
   - locate: role "list" name "Document Outline"
 
