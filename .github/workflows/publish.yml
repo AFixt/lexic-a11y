@@ -104,11 +104,12 @@ jobs:
           # Refuse to publish anywhere but Actions. `npm publish` is
           # irreversible, and the local CI-reproduction tooling this repo leans
           # on (Actions minutes are constrained) re-runs workflow `run:` steps
-          # verbatim: it ignores `if:` and only skips a step when the *run text*
-          # names a secret, which this one no longer needs to. Without this
-          # guard, a routine local CI replay from a developer checkout holding
-          # npm credentials publishes whatever version package.json carries,
-          # built by `prepublishOnly` from an arbitrary working tree.
+          # verbatim: it ignores `if:`, and it only skips a step when the *run
+          # text* names a secret — this step's names none, the token reaches it
+          # through `env:`. Without this guard, a routine local CI replay from a
+          # developer checkout holding npm credentials publishes whatever version
+          # package.json carries, built by `prepublishOnly` from an arbitrary
+          # working tree.
           if [ "${GITHUB_ACTIONS}" != "true" ]; then
             echo "Refusing to publish outside GitHub Actions (GITHUB_ACTIONS=${GITHUB_ACTIONS:-unset})." >&2
             echo "To release by hand, run 'npm publish' deliberately, not via a workflow replay." >&2
