@@ -74,10 +74,12 @@ jobs:
       - name: Build
         if: steps.published.outputs.already == 'false'
         # `dist/` is gitignored, so the tag carries no artifact — the tarball is
-        # whatever this build produces. `prepublishOnly` rebuilds it again at
-        # publish time (that guard is for humans running `npm publish` by hand);
-        # building here is what makes the checks below run against the same
-        # bundles that ship.
+        # whatever a build produces. `prepublishOnly` rebuilds it again at
+        # publish time (that guard is for humans running `npm publish` by hand),
+        # so what ships is strictly a *second* build; the checks below run
+        # against this first one. Rollup's output here is deterministic — two
+        # consecutive builds produce byte-identical bundles — so the two agree.
+        # If that ever stops holding, test the artifact that ships instead.
         run: npm run build
 
       - name: Test
@@ -98,6 +100,33 @@ jobs:
 
       - name: Publish to npm
         if: steps.published.outputs.already == 'false'
-        run: npm publish
+        run: |
+          # Refuse to publish anywhere but Actions. `npm publish` is
+          # irreversible, and the local CI-reproduction tooling this repo leans
+          # on (Actions minutes are constrained) re-runs workflow `run:` steps
+          # verbatim: it ignores `if:` and only skips a step when the *run text*
+          # names a secret, which this one no longer needs to. Without this
+          # guard, a routine local CI replay from a developer checkout holding
+          # npm credentials publishes whatever version package.json carries,
+          # built by `prepublishOnly` from an arbitrary working tree.
+          if [ "${GITHUB_ACTIONS}" != "true" ]; then
+            echo "Refusing to publish outside GitHub Actions (GITHUB_ACTIONS=${GITHUB_ACTIONS:-unset})." >&2
+            echo "To release by hand, run 'npm publish' deliberately, not via a workflow replay." >&2
+            exit 1
+          fi
+
+          # A prerelease tag (v2.4.0-rc.1) matches the `v*.*.*` filter above, and
+          # a bare `npm publish` would hand it to every `^2` consumer as
+          # `latest`. Route anything with a prerelease component to `next`.
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          case "$PKG_VERSION" in
+            *-*)
+              echo "::notice::${PKG_VERSION} is a prerelease; publishing under the 'next' dist-tag."
+              npm publish --tag next
+              ;;
+            *)
+              npm publish
+              ;;
+          esac
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

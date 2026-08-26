@@ -460,11 +460,12 @@ Releases are cut from `main` and published by tag:
 The floating major pointers (`v1`, `v2`) do not match the workflow's `v*.*.*`
 filter, so moving one never triggers a publish.
 
-Publishing by hand is the fallback, not the routine — `v2.2.0` and `v2.3.0` were
-tagged and released but never reached npm while it was ([#131][issue-131]). If
-you do publish manually, run `npm run check:all` first; `npm publish` itself
-runs `prepublishOnly` (`npm run build`), so the tarball can never carry a stale
-`dist/`.
+Publishing by hand is the fallback, not the routine: while it _was_ the routine,
+`v2.2.0` and `v2.3.0` were both tagged and released without ever reaching npm
+([#131][issue-131]). If you do publish manually, run `npm run check:all` first;
+`npm publish` itself runs `prepublishOnly` (`npm run build`), so the tarball can
+never carry a stale `dist/`. A prerelease version publishes under the `next`
+dist-tag rather than `latest`.
 
 [issue-131]: https://github.com/AFixt/lexic-a11y/issues/131
 
