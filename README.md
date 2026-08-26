@@ -444,6 +444,30 @@ We welcome contributions from the community! If you'd like to contribute:
 > pull in `axe-core` (`eslint-plugin-jsx-a11y`, `lighthouse`, `pa11y`,
 > `jest-axe`, and `cypress-axe` all do). Use `@afixt/a11y-assert` instead.
 
+### Releasing
+
+Releases are cut from `main` and published by tag:
+
+1. Land the version bump (`chore(release): vX.Y.Z`) on `develop`, then open the
+   release PR from `develop` to `main`.
+2. After it merges, tag the merge commit `vX.Y.Z` and push the tag.
+3. Pushing that tag runs
+   [`.github/workflows/publish.yml`](./.github/workflows/publish.yml), which
+   verifies the tag matches `package.json`, skips the run if the version is
+   already on npm, then builds, tests, smoke-tests the built bundles, and runs
+   `npm publish`.
+
+The floating major pointers (`v1`, `v2`) do not match the workflow's `v*.*.*`
+filter, so moving one never triggers a publish.
+
+Publishing by hand is the fallback, not the routine — `v2.2.0` and `v2.3.0` were
+tagged and released but never reached npm while it was ([#131][issue-131]). If
+you do publish manually, run `npm run check:all` first; `npm publish` itself
+runs `prepublishOnly` (`npm run build`), so the tarball can never carry a stale
+`dist/`.
+
+[issue-131]: https://github.com/AFixt/lexic-a11y/issues/131
+
 ### Architecture decisions
 
 See [`docs/adr/`](./docs/adr/) for architectural decision records. Use

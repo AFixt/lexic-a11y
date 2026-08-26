@@ -1,0 +1,103 @@
+name: Publish to npm
+
+# Publishes the package to npm when a semver release tag is pushed (e.g.
+# v2.3.1). Before this existed, publishing was a manual step that was done for
+# v2.0.0 and then missed for v2.2.0 and v2.3.0 — both tagged and GitHub-released
+# but absent from the registry, so consumers could not install either (#131).
+#
+# The floating major-version pointers this repository keeps (`v1`, `v2`) are
+# deliberately excluded by the `v*.*.*` pattern: re-pointing `v2` at a new
+# commit must not trigger a publish of whatever version happens to be in
+# package.json at the time.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Never cancel a publish in flight — a half-run publish job is worse than a
+# queued one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify tag matches package version
+        # A tag that disagrees with package.json publishes a version nobody
+        # asked for, under a tag that then points at the wrong tree. Fail loudly
+        # instead.
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "package.json: $PKG_VERSION | tag: $TAG_VERSION"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}"
+            exit 1
+          fi
+
+      - name: Skip if version already published
+        id: published
+        # npm rejects a republish of an existing version, so without this guard
+        # a re-pushed tag would fail the run for a non-problem. Publishing is
+        # irreversible; "already there" is success, not an error.
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if npm view "@afixt/lexic-a11y@${PKG_VERSION}" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::@afixt/lexic-a11y@${PKG_VERSION} is already published; skipping."
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Build
+        if: steps.published.outputs.already == 'false'
+        # `dist/` is gitignored, so the tag carries no artifact — the tarball is
+        # whatever this build produces. `prepublishOnly` rebuilds it again at
+        # publish time (that guard is for humans running `npm publish` by hand);
+        # building here is what makes the checks below run against the same
+        # bundles that ship.
+        run: npm run build
+
+      - name: Test
+        if: steps.published.outputs.already == 'false'
+        run: npm test
+        env:
+          CI: true
+
+      - name: Smoke-test the built bundles
+        if: steps.published.outputs.already == 'false'
+        # The source suite cannot see build-config regressions: #80 shipped
+        # bundles that threw "React is not defined" on mount while `npm test`
+        # was green. Publishing is irreversible, so this runs before it, not in
+        # a PR job alone.
+        run: npm run test:dist
+        env:
+          CI: true
+
+      - name: Publish to npm
+        if: steps.published.outputs.already == 'false'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
