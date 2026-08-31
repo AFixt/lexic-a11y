@@ -20,6 +20,7 @@ const MIN_READABLE_PX = 12;
 const DECLARATION = /(font-size|font)\s*:\s*([^;}]*)/gi;
 const IMPORTANT = /!\s*important\s*$/i;
 const PX_LENGTH = /(?:^|[\s/(,])([0-9.]+)px/gi;
+const COLLAPSE_SPACE = /\s+/g;
 
 /**
  * Lists every absolute px length in a declaration value.
@@ -48,18 +49,26 @@ function pxLengths(value) {
 function parsePxFontSizes(css, label = 'stylesheet') {
   const found = [];
 
-  css.split('\n').forEach((line, index) => {
-    for (const [, property, rawValue] of line.matchAll(DECLARATION)) {
-      const lengths = pxLengths(rawValue.replace(IMPORTANT, '').trim());
-      if (lengths.length === 0) continue;
+  // Scanned over the whole source rather than line by line: prettier wraps a
+  // long value onto continuation lines (see the font-family stacks in
+  // Editor.css), and a wrapped `font` shorthand would slip past a line-based
+  // parser entirely.
+  for (const match of css.matchAll(DECLARATION)) {
+    const [text, property, rawValue] = match;
+    const lengths = pxLengths(rawValue.replace(IMPORTANT, '').trim());
+    if (lengths.length === 0) continue;
 
-      // The shorthand's first px is the size; anything later is line-height.
-      // A `font-size` is judged by its floor, so clamp()/var() fallbacks count.
-      const value = property.toLowerCase() === 'font' ? lengths[0] : Math.min(...lengths);
+    // The shorthand's first px is the size; anything later is line-height.
+    // A `font-size` is judged by its floor, so clamp()/var() fallbacks count.
+    const value = property.toLowerCase() === 'font' ? lengths[0] : Math.min(...lengths);
+    const line = css.slice(0, match.index).split('\n').length;
 
-      found.push({ location: `${label}:${index + 1}`, value, text: line.trim() });
-    }
-  });
+    found.push({
+      location: `${label}:${line}`,
+      value,
+      text: text.trim().replace(COLLAPSE_SPACE, ' '),
+    });
+  }
 
   return found;
 }
@@ -132,6 +141,12 @@ describe('parsePxFontSizes', () => {
 
   it('does not mistake other font-* properties for a size', () => {
     expect(parsePxFontSizes('a { font-weight: 600; font-family: Arial; }')).toEqual([]);
+  });
+
+  it('reads a value wrapped across continuation lines', () => {
+    const css = 'a {\n  font: bold 8px/1.4\n    -apple-system,\n    sans-serif;\n}';
+
+    expect(parsePxFontSizes(css)[0].value).toBe(8);
   });
 
   it('reports a 1-indexed location', () => {
