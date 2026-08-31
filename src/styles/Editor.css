@@ -464,6 +464,12 @@ kbd {
   margin-left: 2px;
 }
 
+/*
+ * The decorative size stepping below is floored at 12px: anything smaller trips
+ * the very-small-text minimum, and that is not a trade this editor makes for a
+ * preview aesthetic -- the aria-labels already announce H1-H6. H5 and H6 both
+ * sit on the floor. See issue #133.
+ */
 .heading-button {
   font-weight: 600;
   min-width: 36px;
@@ -491,7 +497,7 @@ kbd {
 }
 
 .heading-button:nth-child(6) {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Preserve font size for active heading buttons */
