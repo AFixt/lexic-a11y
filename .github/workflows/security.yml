@@ -151,8 +151,10 @@ jobs:
         # would silently drop every flag we pass and quietly weaken the scan.
         # The Action Pin Freshness job reports this ref as "unknown" for the
         # same reason (a branch pin has no tag to compare against) — that is
-        # deliberate, not a defect. Revisit if this action ever cuts a release
-        # newer than 1.1.0.
+        # deliberate, not a defect. The `# <branch> @ <date>` comment form is
+        # what tells the checker so: a bare `# main` would be looked up as a
+        # tag, fail to resolve, and fail the run (#140). Revisit if this action
+        # ever cuts a release newer than 1.1.0.
         uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c # main @ 2025-12-10
         with:
           project: ${{ github.repository }}
