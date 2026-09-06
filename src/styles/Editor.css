@@ -500,11 +500,26 @@ kbd {
   font-size: 12px;
 }
 
-/* Preserve font size for active heading buttons */
-.heading-button.active,
-.heading-button[aria-pressed='true'] {
-  font-size: inherit;
-}
+/*
+ * There is deliberately no font-size on the active heading buttons.
+ *
+ * This rule used to set `font-size: inherit` under the comment "preserve font
+ * size", but `inherit` takes the *parent's* computed size rather than the
+ * button's stepped one, so it replaced the size instead of preserving it and
+ * routed around the 12px floor above: an active H6 rendered at whatever the
+ * host puts around the toolbar. Measured in Chromium against the demo before
+ * removal -- H6 12px inactive, 16px active -- and the button also grew from
+ * 37.3px to 42.5px wide, reflowing the toolbar on every heading change.
+ *
+ * A consumer embedding the editor in a small-font container would have pushed
+ * the active button under the very-small-text minimum, and #134's guard could
+ * not see it because the declared value was a keyword, not a px length.
+ *
+ * The pressed state does not need a size cue: `.editor-toolbar button.active`
+ * above already changes the text colour, background, border colour and adds an
+ * inset ring (measured: four properties differ), and forced-colors mode has its
+ * own rule. See issue #135.
+ */
 
 /* Link Dialog Styles */
 .link-dialog-overlay {

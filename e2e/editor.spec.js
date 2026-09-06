@@ -518,3 +518,71 @@ test.describe('focus indicators', () => {
     });
   }
 });
+
+test.describe('heading-button size floor (WCAG very-small-text, #135)', () => {
+  const MIN_READABLE_PX = 12;
+
+  const headingButton = (page, name) => page.getByRole('button', { name, exact: true });
+
+  /**
+   * The button's rendered size, read once the 0.2s transition has stopped
+   * moving it. Same poll-until-two-reads-agree shape as `settledIndicator`
+   * above: a fixed sleep either races the transition or wastes the difference,
+   * and this assertion is about the value the transition lands on.
+   */
+  const settledMetrics = async (page, name) => {
+    const read = () =>
+      headingButton(page, name).evaluate((el) => ({
+        fontSize: Number.parseFloat(getComputedStyle(el).fontSize),
+        width: el.getBoundingClientRect().width,
+      }));
+
+    let previous = await read();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await page.waitForTimeout(50);
+      const current = await read();
+      if (current.fontSize === previous.fontSize && current.width === previous.width) {
+        return current;
+      }
+      previous = current;
+    }
+    return previous;
+  };
+
+  test.beforeEach(async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('Heading');
+  });
+
+  test('an active heading button keeps its own stepped size, not the ambient one', async ({
+    page,
+  }) => {
+    const inactive = await settledMetrics(page, 'H6');
+    await headingButton(page, 'H6').click();
+    const active = await settledMetrics(page, 'H6');
+
+    await expect(headingButton(page, 'H6')).toHaveAttribute('aria-pressed', 'true');
+    // Before #135 this read 16px -- `font-size: inherit` took the ambient size.
+    expect(active.fontSize).toBe(inactive.fontSize);
+    expect(active.fontSize).toBeGreaterThanOrEqual(MIN_READABLE_PX);
+  });
+
+  test('the floor survives being embedded in a small-font container', async ({ page }) => {
+    // The scenario the issue is about: a host that puts a small font-size
+    // around the toolbar. An `inherit`-sized active button follows it down.
+    await page.locator('.editor-toolbar').evaluate((el) => {
+      el.parentElement.style.fontSize = '8px';
+    });
+    await headingButton(page, 'H6').click();
+
+    expect((await settledMetrics(page, 'H6')).fontSize).toBeGreaterThanOrEqual(MIN_READABLE_PX);
+  });
+
+  test('activating a heading button does not reflow the toolbar', async ({ page }) => {
+    const inactive = await settledMetrics(page, 'H6');
+    await headingButton(page, 'H6').click();
+
+    // Measured before #135: 37.3px inactive, 42.5px active.
+    expect((await settledMetrics(page, 'H6')).width).toBeCloseTo(inactive.width, 1);
+  });
+});

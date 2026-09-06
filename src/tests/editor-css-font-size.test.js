@@ -10,6 +10,14 @@
  * Only absolute px lengths are judged. em/rem/%/vw values depend on an
  * inherited or viewport size the stylesheet doesn't own, so this file can't
  * decide whether they're readable.
+ *
+ * That exemption is exactly how issue #135 got through: the active
+ * heading-preview buttons declared `font-size: inherit`, which is not a px
+ * length, so the scan below skipped it while it silently replaced the stepped
+ * size with the host's ambient one. The floor is only a floor if nothing on
+ * those elements can route around it, so the heading buttons additionally get
+ * a stricter rule-level check further down: on them, a font-size must be an
+ * absolute px at or above the minimum, and a relative or keyword value fails.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,6 +28,8 @@ const MIN_READABLE_PX = 12;
 const DECLARATION = /(font-size|font)\s*:\s*([^;}]*)/gi;
 const IMPORTANT = /!\s*important\s*$/i;
 const PX_LENGTH = /(?:^|[\s/(,])([0-9.]+)px/gi;
+const RULE = /([^{}]*)\{([^{}]*)\}/g;
+const COMMENT = /\/\*[\s\S]*?\*\//g;
 const COLLAPSE_SPACE = /\s+/g;
 
 /**
@@ -98,6 +108,62 @@ function readStylesheets() {
  */
 function parseAll(stylesheets) {
   return stylesheets.flatMap((sheet) => parsePxFontSizes(sheet.css, sheet.name));
+}
+
+/**
+ * Splits a stylesheet into its rules. At-rule preludes are not selectors, so a
+ * rule nested in a media query is found by its own inner selector list; that
+ * is what keeps a heading-button rule from hiding inside `@media`.
+ *
+ * @param {string} css Stylesheet source.
+ * @returns {Array<{selector: string, body: string, index: number}>} Each rule.
+ */
+function parseRules(css) {
+  // Comments are blanked, not deleted, so byte offsets still map to the right
+  // source line. Leaving them in would glue a comment onto the selector of the
+  // rule that follows it -- and this stylesheet has a comment about the
+  // heading buttons sitting directly above an unrelated rule, which would then
+  // be checked as though it targeted one.
+  const stripped = css.replace(COMMENT, (comment) => comment.replace(/[^\n]/g, ' '));
+
+  return [...stripped.matchAll(RULE)].map((match) => ({
+    selector: match[1].trim().replace(COLLAPSE_SPACE, ' '),
+    body: match[2],
+    // Where the selector text starts, not where the match does. The match
+    // begins at the first character after the previous rule -- blank lines and
+    // blanked-out comments included -- so using it would report a location
+    // several lines above the rule a developer needs to open.
+    index: match.index + (match[1].length - match[1].trimStart().length),
+  }));
+}
+
+/**
+ * Every font-size declared on a heading-preview button, with the absolute px
+ * length it resolves to -- or `undefined` when it is relative or a keyword,
+ * which means the host's ambient size decides and the floor does not apply.
+ *
+ * @param {Array<{name: string, css: string}>} stylesheets Stylesheet sources.
+ * @returns {Array<{location: string, selector: string, text: string, px: number | undefined}>} Declarations.
+ */
+function headingButtonFontSizes(stylesheets) {
+  return stylesheets.flatMap(({ name, css }) =>
+    parseRules(css)
+      .filter((rule) => rule.selector.includes('.heading-button'))
+      .flatMap((rule) =>
+        [...rule.body.matchAll(DECLARATION)].map((match) => {
+          const [text, property, rawValue] = match;
+          const lengths = pxLengths(rawValue.replace(IMPORTANT, '').trim());
+          const isShorthand = property.toLowerCase() === 'font';
+
+          return {
+            location: `${name}:${css.slice(0, rule.index).split('\n').length}`,
+            selector: rule.selector,
+            text: text.trim().replace(COLLAPSE_SPACE, ' '),
+            px: lengths.length === 0 ? undefined : isShorthand ? lengths[0] : Math.min(...lengths),
+          };
+        }),
+      ),
+  );
 }
 
 describe('parsePxFontSizes', () => {
@@ -181,5 +247,94 @@ describe('shipped stylesheet font sizes', () => {
     expect(editor).toContain(
       `.heading-button:nth-child(6) {\n  font-size: ${MIN_READABLE_PX}px;\n}`,
     );
+  });
+});
+
+describe('heading-button font sizes are absolute (#135)', () => {
+  const stylesheets = readStylesheets();
+
+  it('finds the heading-button rules to check', () => {
+    expect(headingButtonFontSizes(stylesheets).length).toBeGreaterThan(0);
+  });
+
+  it('declares no relative or keyword font-size on a heading button', () => {
+    // `inherit` takes the parent's computed size, so it replaces the stepped
+    // size rather than preserving it and the 12px floor stops applying. Any
+    // relative unit has the same effect: the host's ambient size decides.
+    const escaping = headingButtonFontSizes(stylesheets).filter((decl) => decl.px === undefined);
+
+    expect(escaping.map((decl) => `${decl.location} {${decl.selector}} ${decl.text}`)).toEqual([]);
+  });
+
+  it('declares no heading-button font-size below the very-small-text minimum', () => {
+    const tooSmall = headingButtonFontSizes(stylesheets).filter(
+      (decl) => decl.px !== undefined && decl.px < MIN_READABLE_PX,
+    );
+
+    expect(tooSmall.map((decl) => `${decl.location} {${decl.selector}} ${decl.text}`)).toEqual([]);
+  });
+});
+
+describe('headingButtonFontSizes', () => {
+  const sheet = (css) => [{ name: 'x.css', css }];
+
+  it('accepts an absolute px at the floor', () => {
+    expect(headingButtonFontSizes(sheet('.heading-button { font-size: 12px; }'))[0].px).toBe(12);
+  });
+
+  it('reports a keyword value as having no px equivalent', () => {
+    const [decl] = headingButtonFontSizes(sheet('.heading-button.active { font-size: inherit; }'));
+
+    expect(decl.px).toBeUndefined();
+    expect(decl.selector).toContain('.heading-button');
+  });
+
+  it('reports a relative value as having no px equivalent', () => {
+    expect(headingButtonFontSizes(sheet('.heading-button { font-size: 0.9em; }'))[0].px).toBe(
+      undefined,
+    );
+  });
+
+  it('reads the size out of the font shorthand too', () => {
+    expect(
+      headingButtonFontSizes(sheet('.heading-button { font: 600 11px/1.2 sans; }'))[0].px,
+    ).toBe(11);
+  });
+
+  it('finds a heading-button rule nested inside a media query', () => {
+    const css =
+      '@media (forced-colors: active) {\n  .heading-button.active {\n    font-size: inherit;\n  }\n}';
+
+    expect(headingButtonFontSizes(sheet(css))).toHaveLength(1);
+  });
+
+  it('picks the heading-button selector out of a multi-selector rule', () => {
+    const css = ".quote-button,\n.heading-button[aria-pressed='true'] {\n  font-size: inherit;\n}";
+
+    expect(headingButtonFontSizes(sheet(css))).toHaveLength(1);
+  });
+
+  it('ignores rules that do not target a heading button', () => {
+    expect(headingButtonFontSizes(sheet('.quote-button { font-size: inherit; }'))).toEqual([]);
+  });
+
+  it('does not treat a comment mentioning a heading button as a selector', () => {
+    // Measured before comments were stripped: the comment glued itself onto
+    // the following selector, so this unrelated rule was checked and failed.
+    const css = '/* see .heading-button above */\n.quote-button {\n  font-size: inherit;\n}';
+
+    expect(headingButtonFontSizes(sheet(css))).toEqual([]);
+  });
+
+  it('still reports the right source line after a multi-line comment', () => {
+    const css = '/* one\n   two\n   three */\n.heading-button {\n  font-size: 11px;\n}';
+
+    expect(headingButtonFontSizes(sheet(css))[0].location).toBe('x.css:4');
+  });
+
+  it('ignores non-size font properties on a heading button', () => {
+    expect(
+      headingButtonFontSizes(sheet('.heading-button { font-weight: 600; font-family: Arial; }')),
+    ).toEqual([]);
   });
 });
