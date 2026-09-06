@@ -22,6 +22,12 @@
     "dist/",
     "build/",
     "coverage/",
+    // Playwright writes error-context.md into these on a failed run. They are
+    // gitignored generated output, but without this a developer whose E2E run
+    // failed also gets a red `npm run check` -- and that is the pre-push hook,
+    // so an unrelated lint failure blocks the push.
+    "test-results/",
+    "playwright-report/",
     "CHANGELOG.md",
     ".github/PULL_REQUEST_TEMPLATE.md",
   ],

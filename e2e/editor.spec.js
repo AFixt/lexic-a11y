@@ -518,3 +518,69 @@ test.describe('focus indicators', () => {
     });
   }
 });
+
+test.describe('heading-button size floor (WCAG very-small-text, #135)', () => {
+  const MIN_READABLE_PX = 12;
+
+  /** Computed font-size of a toolbar button, in px. */
+  const fontSizeOf = (page, name) =>
+    page
+      .getByRole('button', { name, exact: true })
+      .evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+
+  test('an active heading button keeps its own stepped size, not the ambient one', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.locator('.editor-input').click();
+    await page.keyboard.type('Heading');
+
+    const inactive = await fontSizeOf(page, 'H6');
+    await page.getByRole('button', { name: 'H6', exact: true }).click();
+    // The size rules carry a 0.2s transition; let it settle before measuring.
+    await page.waitForTimeout(400);
+    const active = await fontSizeOf(page, 'H6');
+
+    await expect(page.getByRole('button', { name: 'H6', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // Before #135 this read 16px — `font-size: inherit` took the ambient size.
+    expect(active).toBe(inactive);
+    expect(active).toBeGreaterThanOrEqual(MIN_READABLE_PX);
+  });
+
+  test('the floor survives being embedded in a small-font container', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.editor-input').click();
+    await page.keyboard.type('Heading');
+
+    // The scenario the issue is about: a host that puts a small font-size
+    // around the toolbar. An `inherit`-sized active button follows it down.
+    await page.locator('.editor-toolbar').evaluate((el) => {
+      el.parentElement.style.fontSize = '8px';
+    });
+    await page.getByRole('button', { name: 'H6', exact: true }).click();
+    await page.waitForTimeout(400);
+
+    expect(await fontSizeOf(page, 'H6')).toBeGreaterThanOrEqual(MIN_READABLE_PX);
+  });
+
+  test('activating a heading button does not reflow the toolbar', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.editor-input').click();
+    await page.keyboard.type('Heading');
+
+    const widthOf = () =>
+      page
+        .getByRole('button', { name: 'H6', exact: true })
+        .evaluate((el) => el.getBoundingClientRect().width);
+
+    const before = await widthOf();
+    await page.getByRole('button', { name: 'H6', exact: true }).click();
+    await page.waitForTimeout(400);
+
+    // Measured before #135: 37.3px inactive, 42.5px active.
+    expect(await widthOf()).toBeCloseTo(before, 1);
+  });
+});
