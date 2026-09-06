@@ -29,6 +29,7 @@ const DECLARATION = /(font-size|font)\s*:\s*([^;}]*)/gi;
 const IMPORTANT = /!\s*important\s*$/i;
 const PX_LENGTH = /(?:^|[\s/(,])([0-9.]+)px/gi;
 const RULE = /([^{}]*)\{([^{}]*)\}/g;
+const COMMENT = /\/\*[\s\S]*?\*\//g;
 const COLLAPSE_SPACE = /\s+/g;
 
 /**
@@ -118,10 +119,21 @@ function parseAll(stylesheets) {
  * @returns {Array<{selector: string, body: string, index: number}>} Each rule.
  */
 function parseRules(css) {
-  return [...css.matchAll(RULE)].map((match) => ({
+  // Comments are blanked, not deleted, so byte offsets still map to the right
+  // source line. Leaving them in would glue a comment onto the selector of the
+  // rule that follows it -- and this stylesheet has a comment about the
+  // heading buttons sitting directly above an unrelated rule, which would then
+  // be checked as though it targeted one.
+  const stripped = css.replace(COMMENT, (comment) => comment.replace(/[^\n]/g, ' '));
+
+  return [...stripped.matchAll(RULE)].map((match) => ({
     selector: match[1].trim().replace(COLLAPSE_SPACE, ' '),
     body: match[2],
-    index: match.index,
+    // Where the selector text starts, not where the match does. The match
+    // begins at the first character after the previous rule -- blank lines and
+    // blanked-out comments included -- so using it would report a location
+    // several lines above the rule a developer needs to open.
+    index: match.index + (match[1].length - match[1].trimStart().length),
   }));
 }
 
@@ -304,6 +316,20 @@ describe('headingButtonFontSizes', () => {
 
   it('ignores rules that do not target a heading button', () => {
     expect(headingButtonFontSizes(sheet('.quote-button { font-size: inherit; }'))).toEqual([]);
+  });
+
+  it('does not treat a comment mentioning a heading button as a selector', () => {
+    // Measured before comments were stripped: the comment glued itself onto
+    // the following selector, so this unrelated rule was checked and failed.
+    const css = '/* see .heading-button above */\n.quote-button {\n  font-size: inherit;\n}';
+
+    expect(headingButtonFontSizes(sheet(css))).toEqual([]);
+  });
+
+  it('still reports the right source line after a multi-line comment', () => {
+    const css = '/* one\n   two\n   three */\n.heading-button {\n  font-size: 11px;\n}';
+
+    expect(headingButtonFontSizes(sheet(css))[0].location).toBe('x.css:4');
   });
 
   it('ignores non-size font properties on a heading button', () => {
