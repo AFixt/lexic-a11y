@@ -214,6 +214,51 @@ describe('branch pins — `# <branch> @ <date>` (#140)', () => {
   });
 });
 
+describe('CRLF line endings', () => {
+  // A workflow checked out with `core.autocrlf` on (or edited on Windows)
+  // leaves a `\r` before the newline. `.` does not match `\r`, so a pattern
+  // anchored with `$` fails to match the line at all and the reference
+  // vanishes from the report — an unchecked pin that nothing announces,
+  // which is the exact failure this check exists to prevent.
+  const sha = '11d5960a326750d5838078e36cf38b85af677262';
+
+  it('keeps a tagged reference and its tag when the line ends CRLF', () => {
+    const pins = parseActionPins(`      - uses: actions/checkout@${sha} # v4.4.0\r`, 'ci.yml');
+
+    expect(pins).toHaveLength(1);
+    expect(pins[0]).toMatchObject({ sha, tag: 'v4.4.0' });
+  });
+
+  it('keeps a branch pin and its date when the line ends CRLF', () => {
+    const pins = parseActionPins(
+      `        uses: dependency-check/Dependency-Check_Action@${sha} # main @ 2025-12-10\r`,
+      'security.yml',
+    );
+
+    expect(pins).toHaveLength(1);
+    expect(pins[0]).toMatchObject({ branch: 'main', pinnedAt: '2025-12-10' });
+  });
+
+  it('keeps a bare SHA pin when the line ends CRLF', () => {
+    const pins = parseActionPins(`      - uses: actions/checkout@${sha}\r`, 'ci.yml');
+
+    expect(pins).toHaveLength(1);
+    expect(pins[0].sha).toBe(sha);
+  });
+
+  it('parses a whole CRLF file without dropping any reference', () => {
+    const text = [
+      'jobs:',
+      '  build:',
+      '    steps:',
+      `      - uses: actions/checkout@${sha} # v4.4.0`,
+      `      - uses: actions/setup-node@${sha} # v4.4.0`,
+    ].join('\r\n');
+
+    expect(parseActionPins(text, 'ci.yml')).toHaveLength(2);
+  });
+});
+
 describe('summarize (#140)', () => {
   const moved = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 

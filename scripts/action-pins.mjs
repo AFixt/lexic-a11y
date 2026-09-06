@@ -96,8 +96,18 @@ const USES_PREFIX = String.raw`^\s*(?:-\s+)?uses:\s*`;
 
 const USES_PATTERN = new RegExp(
   USES_PREFIX +
-    String.raw`(?<quote>["']?)(?<owner>[\w.-]+)\/(?<repo>[\w.-]+)(?<subpath>\/[\w./-]+)?@(?<ref>[^\s#"']+)\k<quote>\s*(?:#\s*(?<comment>.*))?$`,
+    String.raw`(?<quote>["']?)(?<owner>[\w.-]+)\/(?<repo>[\w.-]+)(?<subpath>\/[\w./-]+)?@(?<ref>[^\s#"']+)\k<quote>\s*(?:#\s*(?<comment>.*))?`,
 );
+
+/*
+ * The comment group takes the rest of the line -- the branch-pin form below
+ * needs more than the first word -- and is deliberately NOT anchored with
+ * `$`. `.` does not match `\r`, so anchoring would make every reference in a
+ * CRLF-checked-out workflow fail to match and vanish from the report
+ * entirely: a silently unchecked pin, which is the failure this whole check
+ * exists to prevent. Measured before the anchor was removed: a tagged pin
+ * with a trailing `\r` parsed to nothing at all.
+ */
 
 /**
  * `# <branch> @ <YYYY-MM-DD>` — the fleet convention for a deliberate branch
