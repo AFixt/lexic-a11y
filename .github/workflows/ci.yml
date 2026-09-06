@@ -39,6 +39,12 @@ jobs:
         run: npm run lint:md --if-present || npx markdownlint '**/*.md' --ignore node_modules --ignore '**/CHANGELOG.md'
         continue-on-error: true
 
+      # Unused files, exports and dependencies (#144). Not continue-on-error:
+      # the report was brought to zero when Knip was added, and the only way it
+      # stays there is if a new finding fails the build.
+      - name: Find unused files, exports and dependencies (knip)
+        run: npm run knip
+
       - name: Check for code duplication (jscpd)
         run: npm run lint:cpd:ci --if-present || npx jscpd . --threshold 5 --reporters console
         continue-on-error: true

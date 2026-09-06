@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+
+  // Two entry points Knip cannot infer. Everything else -- the library entry
+  // (rollup `input`), the demo app (`index.html`), the Jest and Playwright
+  // suites, the repo scripts -- is found by Knip's own plugins, so it is
+  // deliberately not repeated here.
+  //
+  // - `src/index.d.ts` is hand-maintained rather than generated, and nothing
+  //   imports it: rollup copies it to `package.json`'s `types` path and
+  //   `npm run types:check` compiles it directly. No importer to follow.
+  // - `examples/main.jsx` is loaded by `examples/index.html`, which is not the
+  //   Vite root, so the Vite plugin does not reach it. See `npm run example`.
+  "entry": ["src/index.d.ts", "examples/main.jsx"],
+
+  // `sandbox/` is a self-contained CodeSandbox demo with its own package.json
+  // and its own dependencies (react-scripts). It is not built, tested or
+  // published by this project, so measuring it against *this* manifest reports
+  // all of its files as unused and all of its imports as unlisted.
+  "ignore": ["sandbox/**"],
+
+  // Installed by `scripts/bootstrap.sh` via Homebrew, not by npm, so they can
+  // never appear in package.json. See the Tooling section of CLAUDE.md.
+  "ignoreBinaries": ["lychee", "osv-scanner", "semgrep", "trufflehog"],
+
+  // `ts-api-utils` is load-bearing despite nothing in this repository
+  // importing it: eslint-plugin-sonarjs@3.0.7 does
+  // `require("ts-api-utils")` in cjs/S6759/rule.js but declares it in neither
+  // `dependencies` nor `peerDependencies`, so it only resolves while it is a
+  // direct dependency here. Removing it on Knip's advice was tried and
+  // `npx eslint .` died with "Cannot find module 'ts-api-utils'" before
+  // linting a single file. Knip cannot see a require() inside a dependency's
+  // own runtime, so this one has to be declared by hand. Drop it if sonarjs
+  // ever declares the dependency itself.
+  "ignoreDependencies": ["ts-api-utils"]
+}
