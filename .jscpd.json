@@ -14,7 +14,6 @@
     "**/coverage/**",
     "**/sandbox/**",
     "**/examples/**",
-    "App.js",
     "**/*.test.{js,jsx}",
     "**/*.spec.{js,jsx}",
     "**/__fixtures__/**",
