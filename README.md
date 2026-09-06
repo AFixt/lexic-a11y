@@ -398,6 +398,13 @@ We welcome contributions from the community! If you'd like to contribute:
 - **Before pushing:** Run `npm run check:all` — this runs lint, tests, build,
   duplication check, bundle size, license compliance, `npm audit`, and
   trufflehog.
+- **Dead code:** `npm run knip` reports unused files, exports, and dependencies,
+  and runs as part of `npm run check` and the `Lint & Format` CI job. Its report
+  is at zero, so any finding is something this change introduced. Fix it rather
+  than silencing it; when a finding really is a false positive, add a narrow
+  rule to [`knip.json`](knip.json) with a comment saying why, as the existing
+  entries do. `ts-api-utils` is the instructive one — it looks unused and is
+  not, because `eslint-plugin-sonarjs` requires it without declaring it.
 - **Commit style:** [Conventional Commits](https://www.conventionalcommits.org/)
   (enforced by commitlint via the `commit-msg` hook).
 - **Open issues:** Use the repository's issue tracker for bugs or feature
@@ -405,29 +412,30 @@ We welcome contributions from the community! If you'd like to contribute:
 
 ### Available scripts
 
-| Script                         | Purpose                                        |
-| ------------------------------ | ---------------------------------------------- |
-| `npm start`                    | Start Vite dev server (demo, port 4001)        |
-| `npm run example`              | Open the feature-tour example                  |
-| `npm run build`                | Build the library (Rollup → `dist/`)           |
-| `npm run build:analyze`        | Build with bundle visualizer report            |
-| `npm test`                     | Run the Jest test suite                        |
-| `npm run test:dist`            | Smoke-test the built bundles (needs `build`)   |
-| `npm run test:e2e`             | Run the Playwright E2E suite                   |
-| `npm run lint`                 | Run ESLint                                     |
-| `npm run lint:css`             | Run Stylelint                                  |
-| `npm run lint:md`              | Run markdownlint-cli2                          |
-| `npm run types:check`          | Typecheck the published `.d.ts` under `strict` |
-| `npm run format`               | Run Prettier (write mode)                      |
-| `npm run format:check`         | Run Prettier in check mode                     |
-| `npm run dupes`                | Run jscpd duplication check                    |
-| `npm run size`                 | Enforce `size-limit` budgets                   |
-| `npm run links`                | Check markdown links with `lychee`             |
-| `npm run security`             | Run npm audit + OSV + Semgrep + trufflehog     |
-| `npm run license:check`        | Verify production dependency licenses          |
-| `npm run security:banned-deps` | Fail if a banned package resolves              |
-| `npm run check`                | Lint + stylelint + markdown + format + types   |
-| `npm run check:all`            | Full local gate (used by the `pre-push` hook)  |
+| Script                         | Purpose                                             |
+| ------------------------------ | --------------------------------------------------- |
+| `npm start`                    | Start Vite dev server (demo, port 4001)             |
+| `npm run example`              | Open the feature-tour example                       |
+| `npm run build`                | Build the library (Rollup → `dist/`)                |
+| `npm run build:analyze`        | Build with bundle visualizer report                 |
+| `npm test`                     | Run the Jest test suite                             |
+| `npm run test:dist`            | Smoke-test the built bundles (needs `build`)        |
+| `npm run test:e2e`             | Run the Playwright E2E suite                        |
+| `npm run lint`                 | Run ESLint                                          |
+| `npm run lint:css`             | Run Stylelint                                       |
+| `npm run lint:md`              | Run markdownlint-cli2                               |
+| `npm run types:check`          | Typecheck the published `.d.ts` under `strict`      |
+| `npm run format`               | Run Prettier (write mode)                           |
+| `npm run format:check`         | Run Prettier in check mode                          |
+| `npm run dupes`                | Run jscpd duplication check                         |
+| `npm run knip`                 | Find unused files, exports, and dependencies        |
+| `npm run size`                 | Enforce `size-limit` budgets                        |
+| `npm run links`                | Check markdown links with `lychee`                  |
+| `npm run security`             | Run npm audit + OSV + Semgrep + trufflehog          |
+| `npm run license:check`        | Verify production dependency licenses               |
+| `npm run security:banned-deps` | Fail if a banned package resolves                   |
+| `npm run check`                | Lint + stylelint + markdown + format + types + knip |
+| `npm run check:all`            | Full local gate (used by the `pre-push` hook)       |
 
 > **Accessibility test tooling:** `npm test` runs automated WCAG assertions via
 > [`@afixt/a11y-assert`](https://www.npmjs.com/package/@afixt/a11y-assert), a

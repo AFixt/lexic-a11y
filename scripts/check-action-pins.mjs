@@ -9,27 +9,36 @@
  *
  *   npm run security:action-pins
  *
- * Exit code 1 when any pin is stale — the tag has moved since it was pinned,
- * which usually means upstream shipped a fix this repository is frozen
- * against. References that cannot be checked (no SHA, no tag comment, or a
- * branch pin like Dependency-Check_Action's deliberate `main` pin) are
- * reported as unknown and do not fail the run: "we could not check" and
- * "this is out of date" warrant different responses. The corollary: a run in
- * which every pin is unknown has verified nothing, and still exits 0 — read
- * the reasons (an HTTP 401/403 on all of them means the token, not the pins).
+ * Exit code 1 when either:
+ *
+ *   - a pin is stale — the tag has moved since it was pinned, which usually
+ *     means upstream shipped a fix this repository is frozen against; or
+ *   - a pin that carries both a SHA and a `# <tag>` comment could not be
+ *     resolved. The comparison was owed and did not happen. Without this, a
+ *     rate-limited or unauthorised run resolves nothing, reports every
+ *     reference as unknown and exits 0 — indistinguishable by exit code from
+ *     a clean run, which is the all-clear CI acts on (#140).
+ *
+ * References with nothing to compare against — no SHA, a SHA with no
+ * `# <tag>` comment, or a deliberate `# <branch> @ <date>` branch pin like
+ * Dependency-Check_Action's — are reported as unknown and do not fail the
+ * run. Nothing was missed in those cases; there was never anything to check.
  *
  * Env vars:
- *   GITHUB_TOKEN — raises the API rate limit from 60/hr to 5000/hr. Optional
- *                  locally; supplied automatically in Actions.
+ *   GITHUB_TOKEN   — raises the API rate limit from 60/hr to 5000/hr. Optional
+ *                    locally; supplied automatically in Actions.
+ *   GITHUB_API_URL — the REST API origin. Actions sets it (and it is what
+ *                    makes GitHub Enterprise work); the exit-code tests point
+ *                    it at a stub server. Defaults to https://api.github.com.
  */
 import { promises as fs } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { classifyPin, parseActionPins, repoSlug } from './action-pins.mjs';
+import { classifyPin, parseActionPins, repoSlug, summarize } from './action-pins.mjs';
 
 const DEFAULT_WORKFLOW_DIR = join(dirname(fileURLToPath(import.meta.url)), '../.github/workflows');
 
-const API = 'https://api.github.com';
+const API = (process.env.GITHUB_API_URL || 'https://api.github.com').replace(/\/+$/, '');
 
 /**
  * Request headers for the GitHub REST API.
@@ -50,10 +59,10 @@ function headers() {
  *
  * Annotated tags resolve to a tag object rather than a commit, so those need
  * a second hop to get the commit a workflow would actually check out. Returns
- * `{ failure }` for anything unresolvable; the caller reports that as unknown
- * rather than treating it as drift, and prints the failure so a 404 (tag
- * gone) and a 403 (rate limited — unauthenticated callers get 60/hr) are
- * distinguishable in the output (#124).
+ * `{ failure }` for anything unresolvable; the caller reports that as
+ * unresolved rather than treating it as drift, and prints the failure so a
+ * 404 (tag gone) and a 403 (rate limited — unauthenticated callers get 60/hr)
+ * are distinguishable in the output (#124).
  *
  * @param {string} slug `owner/repo`.
  * @param {string} tag The tag name from the pin's trailing comment.
@@ -80,6 +89,8 @@ async function resolveTag(slug, tag) {
       ? { sha: annotated.object.sha }
       : { failure: 'annotated tag has no target' };
   } catch (err) {
+    // A transport failure or a malformed body is "we could not check", not
+    // "this pin is fine" and not a reason to abandon the other references.
     return { failure: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -102,7 +113,58 @@ async function collectPins(dir) {
 }
 
 /**
- * Check every pin and report; exit 1 if any is stale.
+ * Classify every pin, printing one line each, and bucket the ones that need
+ * attention.
+ *
+ * @param {import('./action-pins.mjs').ActionPin[]} pins Parsed references.
+ * @param {Map<string, {sha?: string, failure?: string}>} resolved Tag lookups, keyed `slug@tag`.
+ * @returns {{statuses: import('./action-pins.mjs').PinStatus[], stale: string[], unresolved: string[], unknown: string[]}} Statuses and reportable lines per bucket.
+ */
+function report(pins, resolved) {
+  const statuses = [];
+  const buckets = { stale: [], unresolved: [], unknown: [] };
+
+  for (const pin of pins) {
+    const lookup = resolved.get(`${repoSlug(pin)}@${pin.tag}`) ?? {};
+    const status = classifyPin(pin, lookup.sha, lookup.failure);
+    statuses.push(status);
+
+    const where = `${pin.file}:${pin.line}`;
+    if (status.kind === 'current') {
+      console.log(`  ok          ${where}  ${repoSlug(pin)}@${pin.tag}`);
+    } else if (status.kind === 'stale') {
+      buckets.stale.push(
+        `${where}  ${repoSlug(pin)}  ${pin.tag}: ${pin.sha} -> ${status.expected}`,
+      );
+      console.log(`  STALE       ${where}  ${repoSlug(pin)}@${pin.tag}`);
+    } else {
+      const label = status.kind === 'unresolved' ? 'UNRESOLVED  ' : 'unknown     ';
+      buckets[status.kind].push(`${where}  ${repoSlug(pin)}  ${status.reason}`);
+      console.log(`  ${label}${where}  ${repoSlug(pin)}  ${status.reason}`);
+    }
+  }
+
+  return { statuses, ...buckets };
+}
+
+/**
+ * Print a titled block of detail lines, if there are any.
+ *
+ * @param {string} title Heading for the block.
+ * @param {string[]} lines Detail lines, one per reference.
+ * @param {string} [advice] Optional trailing paragraph explaining what to do.
+ * @returns {void}
+ */
+function printSection(title, lines, advice) {
+  if (lines.length === 0) return;
+
+  console.log(`\n${title}`);
+  for (const line of lines) console.log(`  ${line}`);
+  if (advice) console.log(`\n${advice}`);
+}
+
+/**
+ * Check every pin and report; exit 1 if any is stale or could not be checked.
  *
  * @returns {Promise<void>} Resolves when the report is printed.
  */
@@ -112,7 +174,8 @@ async function main() {
 
   if (pins.length === 0) {
     console.error(`No action references found in ${dir}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // One lookup per distinct repo+tag: the references collapse to a handful,
@@ -129,48 +192,41 @@ async function main() {
     [...wanted].map(async ([key, { slug, tag }]) => resolved.set(key, await resolveTag(slug, tag))),
   );
 
-  const stale = [];
-  const unknown = [];
-
-  for (const pin of pins) {
-    const lookup = resolved.get(`${repoSlug(pin)}@${pin.tag}`) ?? {};
-    const status = classifyPin(pin, lookup.sha, lookup.failure);
-    const where = `${pin.file}:${pin.line}`;
-
-    if (status.kind === 'current') {
-      console.log(`  ok       ${where}  ${repoSlug(pin)}@${pin.tag}`);
-    } else if (status.kind === 'stale') {
-      stale.push(`${where}  ${repoSlug(pin)}  ${pin.tag}: ${pin.sha} -> ${status.expected}`);
-      console.log(`  STALE    ${where}  ${repoSlug(pin)}@${pin.tag}`);
-    } else {
-      unknown.push(`${where}  ${repoSlug(pin)}  ${status.reason}`);
-      console.log(`  unknown  ${where}  ${repoSlug(pin)}  ${status.reason}`);
-    }
-  }
+  const { statuses, stale, unresolved, unknown } = report(pins, resolved);
+  const totals = summarize(statuses);
 
   console.log(
-    `\n${pins.length} references checked: ${pins.length - stale.length - unknown.length} current, ` +
-      `${stale.length} stale, ${unknown.length} unknown.`,
+    `\n${totals.total} references checked: ${totals.resolved} resolved ` +
+      `(${totals.current} current, ${totals.stale} stale), ` +
+      `${totals.unresolved} could not be resolved, ` +
+      `${totals.unknown} with nothing to compare against.`,
   );
 
-  if (unknown.length > 0) {
-    console.log('\nCould not be checked:');
-    for (const line of unknown) console.log(`  ${line}`);
-  }
+  printSection('Nothing to compare against (not a failure):', unknown);
 
-  if (stale.length > 0) {
-    console.log('\nStale pins — the tag has moved since these were pinned:');
-    for (const line of stale) console.log(`  ${line}`);
-    console.log(
-      '\nUpdate the SHA in the workflow, keeping the "# <tag>" comment accurate.\n' +
-        'Read the upstream release notes first — that is the review step a pinned\n' +
-        'SHA buys you, and the reason this repository pins rather than floating.',
-    );
-    process.exit(1);
-  }
+  printSection(
+    'Could not be resolved — these pins were NOT checked:',
+    unresolved,
+    'A tag that will not resolve is usually a rate-limited or unauthorised API\n' +
+      'call, not drift. Set GITHUB_TOKEN and run it again; the run fails because\n' +
+      'the check did not happen, not because these pins are known to be wrong.',
+  );
+
+  printSection(
+    'Stale pins — the tag has moved since these were pinned:',
+    stale,
+    'Update the SHA in the workflow, keeping the "# <tag>" comment accurate.\n' +
+      'Read the upstream release notes first — that is the review step a pinned\n' +
+      'SHA buys you, and the reason this repository pins rather than floating.',
+  );
+
+  // process.exitCode rather than process.exit(): the report above is the
+  // whole point of a failing run, and process.exit() drops whatever of it is
+  // still queued on a pipe.
+  if (!totals.ok) process.exitCode = 1;
 }
 
 main().catch((err) => {
   console.error(err);
-  process.exit(1);
+  process.exitCode = 1;
 });
