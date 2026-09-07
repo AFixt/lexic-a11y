@@ -38,7 +38,7 @@
     "security:audit": "npm audit --production --audit-level=high",
     "security:osv": "osv-scanner --lockfile=package-lock.json",
     "security:semgrep": "semgrep --config=p/javascript --config=p/react --config=p/owasp-top-ten --error --metrics=off",
-    "security:secrets": "trufflehog git file://. --only-verified --fail",
+    "security:secrets": "sh scripts/scan-secrets.sh",
     "security:banned-deps": "node scripts/check-banned-deps.mjs",
     "validate:usecases": "node scripts/validate-usecases.mjs",
     "security:action-pins": "node scripts/check-action-pins.mjs",
