@@ -1,21 +1,22 @@
 #!/usr/bin/env sh
 # Secret scan over the content actually being committed.
 #
-# REV-757 / REV-670: the previous version of this gate reported success on every
-# commit because it scanned nothing:
+# REV-757 (fleet rollout of REV-670): the previous gates in this repo scanned real
+# content and then suppressed nearly everything they could find. Both passed
+# `--only-verified`:
 #
-#   trufflehog git file://. --since-commit HEAD --only-verified --fail
+#   trufflehog git file://. --only-verified --fail          (npm run security:secrets)
+#   trufflehog filesystem <staged paths> --only-verified    (.husky/pre-commit)
 #
-# Two independent problems, each sufficient on its own.
+# `--only-verified` fails only on credentials trufflehog can authenticate against
+# the live service, so a revoked key, or one for a service it has no verifier
+# for, passed silently even though it was read. That is most of what a secret
+# gate exists to catch.
 #
-#   1. `--since-commit HEAD` scans commits AFTER HEAD. At pre-commit the content
-#      is staged and not yet committed, so there are none; at pre-push HEAD is
-#      already the tip being pushed, so again none. The tell was in the output
-#      all along — real runs logged "chunks: 0, bytes: 0", meaning it never read
-#      the repository.
-#   2. `--only-verified` fails only on credentials trufflehog can authenticate
-#      against the live service, so a revoked key, or one for a service it has
-#      no verifier for, passes silently even when scanned.
+# (The afixt-engine original of this script also fixed a `--since-commit HEAD`
+# variant that scanned nothing at all — "chunks: 0, bytes: 0". This repo never
+# ran that form; it is kept in the table below because the table was measured
+# with it and the row still explains why the flag is wrong.)
 #
 # Measured in a scratch repo with a planted, NON-EXAMPLE AWS key pair:
 #
@@ -75,10 +76,20 @@ while IFS= read -r path; do
   fi
   count=$((count + 1))
 done <<EOF
-$(git diff --cached --name-only --diff-filter=ACMR)
+$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR)
 EOF
+# `core.quotePath=false` matters: git otherwise octal-escapes and double-quotes
+# any path with a non-ASCII byte (`"r\303\251sum\303\251.md"`), `git show`
+# cannot resolve the quoted form, and the fail-closed branch above would refuse
+# every commit that stages such a file — clean or not.
 
-[ "$count" -gt 0 ] || exit 0
+# Nothing staged is the normal case when this runs from `check:all` or
+# `npm run security` rather than the pre-commit hook. Say so, so an exit 0 here
+# is never mistaken for a clean scan of the repository.
+if [ "$count" -eq 0 ]; then
+  echo "secret scan: nothing staged — no content scanned (this gate scans the staged blobs; see scripts/scan-secrets.sh)."
+  exit 0
+fi
 
 if ! trufflehog filesystem "$tmp" --fail --no-update; then
   echo ""
