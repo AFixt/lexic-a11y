@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 jobs:
-  # Secret scanning — fails on verified secrets
+  # Secret scanning — fails on any detected secret, verified or not (REV-757)
   secret-scan:
     name: Secret Scan (TruffleHog)
     runs-on: ubuntu-latest
