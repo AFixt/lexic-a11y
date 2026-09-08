@@ -396,8 +396,10 @@ We welcome contributions from the community! If you'd like to contribute:
 
 - **Fork & branch:** Branch off `develop` (`feature/<issue>-<slug>`).
 - **Before pushing:** Run `npm run check:all` — this runs lint, tests, build,
-  duplication check, bundle size, license compliance, `npm audit`, and
-  trufflehog.
+  duplication check, bundle size, license compliance, `npm audit`, and the
+  secret scan. The secret scan (`npm run security:secrets`) reads the **staged**
+  blobs, so outside the pre-commit hook it usually reports "nothing staged"; the
+  CI `Secret Scan` job covers committed history.
 - **Dead code:** `npm run knip` reports unused files, exports, and dependencies,
   and runs as part of `npm run check` and the `Lint & Format` CI job. Its report
   is at zero, so any finding is something this change introduced. Fix it rather
@@ -431,7 +433,7 @@ We welcome contributions from the community! If you'd like to contribute:
 | `npm run knip`                 | Find unused files, exports, and dependencies        |
 | `npm run size`                 | Enforce `size-limit` budgets                        |
 | `npm run links`                | Check markdown links with `lychee`                  |
-| `npm run security`             | Run npm audit + OSV + Semgrep + trufflehog          |
+| `npm run security`             | Run npm audit + OSV + Semgrep + staged secret scan  |
 | `npm run license:check`        | Verify production dependency licenses               |
 | `npm run security:banned-deps` | Fail if a banned package resolves                   |
 | `npm run check`                | Lint + stylelint + markdown + format + types + knip |

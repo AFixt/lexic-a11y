@@ -1,12 +1,7 @@
 npx lint-staged
 
-if command -v trufflehog >/dev/null 2>&1; then
-  # Scan the working-tree versions of staged files for verified secrets
-  staged=$(git diff --cached --name-only --diff-filter=ACM)
-  if [ -n "$staged" ]; then
-    # shellcheck disable=SC2086
-    trufflehog filesystem $staged --only-verified --fail --no-update
-  fi
-else
-  echo "warning: trufflehog not installed — skipping secret scan. Install with 'brew install trufflehog'."
-fi
+# REV-757: secret scan over the staged blobs, via the npm script so the gate is
+# reachable by name. The script handles a missing trufflehog itself (warns and
+# passes) — a gate nobody can satisfy just gets bypassed, and bypassing hooks is
+# not permitted here.
+npm run security:secrets

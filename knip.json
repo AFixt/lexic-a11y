@@ -21,7 +21,9 @@
 
   // Installed by `scripts/bootstrap.sh` via Homebrew, not by npm, so they can
   // never appear in package.json. See the Tooling section of CLAUDE.md.
-  "ignoreBinaries": ["lychee", "osv-scanner", "semgrep", "trufflehog"],
+  // `trufflehog` is not listed: `security:secrets` runs `scripts/scan-secrets.sh`
+  // and Knip does not read shell scripts, so it never sees the binary at all.
+  "ignoreBinaries": ["lychee", "osv-scanner", "semgrep"],
 
   // `ts-api-utils` is load-bearing despite nothing in this repository
   // importing it: eslint-plugin-sonarjs@3.0.7 does
