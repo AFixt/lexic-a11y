@@ -30,6 +30,22 @@ jobs:
         uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51 # v3.95.5
         with:
           path: ./
+          # #152: pin the SCANNER, not just the action. The action is a
+          # composite step that shells out to
+          # `docker run … ghcr.io/trufflesecurity/trufflehog:${VERSION}`, and
+          # its action.yml defaults `version` to "latest" — so pinning the
+          # action SHA froze the wrapper script while the binary that actually
+          # reads the code still came from a mutable tag on every run.
+          #
+          # That matters more for a secret scanner than for most tools: if the
+          # scanner regresses, the check fails OPEN and a clean-looking result
+          # is indistinguishable from a real one.
+          #
+          # Matched to the release this action SHA already points at. No
+          # leading "v" — that is the ghcr image tag, and its existence was
+          # confirmed against the registry rather than assumed.
+          version: "3.95.5"
+
           # REV-757: --only-verified fails only on credentials trufflehog can
           # authenticate against the live service, so a revoked key — or one for a
           # service it has no verifier for — passed silently even when scanned.
