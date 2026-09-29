@@ -1,6 +1,8 @@
 // editor.spec.js — E2E smoke tests for the demo app in a real browser
 import { expect, test } from '@playwright/test';
 
+import { contrastRatio, expectReadableText, flatten, parseColor } from './contrast.js';
+
 const EDITOR = '.editor-input';
 
 test.beforeEach(async ({ page }) => {
@@ -235,38 +237,6 @@ test.describe('initial content', () => {
 // there, every element looks unstyled. A real browser is the only place this
 // can be measured, so the jsdom suite excludes KEYBOARD-01 and defers to these.
 
-/** Parse a computed `rgb()`/`rgba()` string into channels plus alpha. */
-const parseColor = (value) => {
-  const match = /rgba?\(([^)]+)\)/.exec(value ?? '');
-  if (!match) return null;
-  const parts = match[1].split(',').map((part) => Number.parseFloat(part.trim()));
-  const [r, g, b, a = 1] = parts;
-  return { r, g, b, a };
-};
-
-/** Flatten a translucent color onto an opaque backdrop. */
-const flatten = (fg, bg) => ({
-  r: fg.a * fg.r + (1 - fg.a) * bg.r,
-  g: fg.a * fg.g + (1 - fg.a) * bg.g,
-  b: fg.a * fg.b + (1 - fg.a) * bg.b,
-  a: 1,
-});
-
-/** WCAG relative luminance. */
-const luminance = ({ r, g, b }) => {
-  const channel = (value) => {
-    const srgb = value / 255;
-    return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-};
-
-/** WCAG contrast ratio between two opaque colors. */
-const contrastRatio = (one, two) => {
-  const [lighter, darker] = [luminance(one), luminance(two)].sort((a, b) => b - a);
-  return (lighter + 0.05) / (darker + 0.05);
-};
-
 /**
  * Read every style that could carry a focus indicator, plus the first opaque
  * background painted behind the element (the backdrop the indicator sits on).
@@ -337,77 +307,7 @@ const indicatorColor = (styles) => {
 // therefore a real browser: jsdom loads no stylesheets, so the jsdom rule
 // suite cannot measure contrast at all (issue #84). Each check reads the
 // rendered text colour and the first opaque background painted behind it.
-
-/**
- * For each element matching `selector`, read the computed colour, font metrics,
- * and the stack of backgrounds painted behind the text (walking from the
- * element itself up through its ancestors until the first fully opaque layer),
- * plus a label for error messages.
- */
-const readTextStyles = (page, selector) =>
-  page.evaluate((sel) => {
-    return [...document.querySelectorAll(sel)].map((element) => {
-      const styles = getComputedStyle(element);
-
-      // Every painted layer matters: a translucent background is not the
-      // backdrop itself, it is composited over whatever is beneath it.
-      const backgrounds = [];
-      for (let node = element; node; node = node.parentElement) {
-        const background = getComputedStyle(node).backgroundColor;
-        const match = /rgba?\(([^)]+)\)/.exec(background);
-        const alpha = match ? Number.parseFloat(match[1].split(',')[3] ?? '1') : 0;
-        if (alpha > 0) {
-          backgrounds.push(background);
-          if (alpha === 1) break;
-        }
-      }
-
-      return {
-        label:
-          element.getAttribute('aria-label') ||
-          `${element.tagName.toLowerCase()} "${(element.textContent || '').trim().slice(0, 30)}"`,
-        color: styles.color,
-        fontSize: Number.parseFloat(styles.fontSize),
-        fontWeight: Number.parseFloat(styles.fontWeight),
-        backgrounds,
-      };
-    });
-  }, selector);
-
-/**
- * SC 1.4.3 threshold: large-scale text (24px+, or bold 18.66px+) needs 3:1,
- * everything else 4.5:1.
- */
-const requiredRatio = ({ fontSize, fontWeight }) =>
-  fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700) ? 3 : 4.5;
-
-/** Assert every element matching `selector` meets its SC 1.4.3 threshold. */
-const expectReadableText = async (page, selector) => {
-  const entries = await readTextStyles(page, selector);
-  expect(entries.length, `${selector} matched nothing`).toBeGreaterThan(0);
-
-  for (const entry of entries) {
-    // Composite the background stack bottom-up (over white, the page default)
-    // so translucent layers are seen as rendered, not at their nominal colour.
-    const backdrop = entry.backgrounds
-      .reverse()
-      .reduce((below, layer) => flatten(parseColor(layer), below), {
-        r: 255,
-        g: 255,
-        b: 255,
-        a: 1,
-      });
-    // Translucent text is likewise seen as its composite over the backdrop.
-    const text = flatten(parseColor(entry.color), backdrop);
-    const ratio = contrastRatio(text, backdrop);
-    const backdropLabel = `rgb(${Math.round(backdrop.r)}, ${Math.round(backdrop.g)}, ${Math.round(backdrop.b)})`;
-
-    expect(
-      ratio,
-      `${entry.label}: ${entry.color} on ${backdropLabel} is ${ratio.toFixed(2)}:1`,
-    ).toBeGreaterThanOrEqual(requiredRatio(entry));
-  }
-};
+// The measuring helpers live in ./contrast.js, shared with theme-contrast.spec.js.
 
 test.describe('text colour contrast (WCAG 2.2 SC 1.4.3)', () => {
   test('every toolbar control has readable text', async ({ page }) => {

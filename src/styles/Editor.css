@@ -1,20 +1,132 @@
 /* Editor.css */
 
 /* Basic editor styles including Lexical theme classes */
-:root {
+
+/*
+ * Colour themes (issue #154).
+ *
+ * Every colour the editor paints comes from one of these custom properties, so
+ * a theme is a set of values and nothing else. Two sets ship:
+ *
+ * - light (the default), and
+ * - dark, applied automatically under `prefers-color-scheme: dark`.
+ *
+ * A host can pin either one with `data-theme="light"` or `data-theme="dark"` on
+ * any ancestor of the editor — usually `<html>`. Custom properties inherit, so
+ * the attribute reaches the toolbar, the dialogs and the content alike, and an
+ * explicit `light` also opts out of the automatic dark set. The previous
+ * workaround (redefining these variables from the outside) still works; it is
+ * just no longer needed.
+ *
+ * Every pairing below is measured in a real browser by
+ * e2e/theme-contrast.spec.js, in both themes: text at least 4.5:1, state-
+ * carrying borders, focus rings and icons at least 3:1. Change a value and run
+ * that suite. `--border-color` is deliberately decorative (panel edges and the
+ * resting outline of controls that are identified by their label or icon);
+ * wherever an edge is the only thing that identifies a control — a text input —
+ * `--control-border` is used instead, and that one is held to 3:1.
+ */
+:root,
+[data-theme='light'] {
+  --editor-color-scheme: light;
   --primary-color: #4361ee;
   --primary-light: #e8efff;
   --primary-dark: #2947c3;
   --secondary-color: #4cc9f0;
+  --on-primary: #fff;
   --text-color: #333;
-  --text-light: #757575;
+
+  /* Was #757575, which is 4.61:1 on white but 4.00:1 on the upload drop
+     zone's --primary-light and 4.37:1 on --surface. */
+  --text-light: #636363;
   --background: #fff;
+  --surface: #f8f9fa;
+  --surface-code: #f1f3f5;
   --border-color: #e0e0e0;
+  --control-border: #767676;
   --focus-color: #4361ee;
-  --error-color: #ef476f;
+
+  /* Was #ef476f: 3.62:1 on white, too low for the upload error text. */
+  --error-color: #c0203f;
   --success-color: #06d6a0;
+  --link-color: #2947c3;
+  --button-secondary-bg: #f1f1f1;
+  --button-secondary-hover: #e1e1e1;
+  --dropzone-active: #dbe4ff;
+  --disabled-bg: #e9ecef;
+  --disabled-text: #5c636a;
+
+  /* The tooltip is portalled to <body> and is dark in both themes, so the dark
+     sets do not redefine these. */
+  --tooltip-bg: #1f2933;
+  --tooltip-text: #fff;
   --transition: all 0.2s ease-in-out;
   --box-shadow: 0 2px 5px rgb(0 0 0 / 8%);
+}
+
+/* The dark set appears twice — once for the OS preference, once for the
+   explicit opt-in — because CSS cannot share one declaration block between a
+   media query and an attribute selector. Keep the two blocks identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --editor-color-scheme: dark;
+    --primary-color: #8ea2ff;
+    --primary-light: #2a3563;
+    --primary-dark: #b8c6ff;
+    --on-primary: #10131c;
+    --text-color: #e6e6e6;
+    --text-light: #a9adb5;
+    --background: #1b1d23;
+    --surface: #252830;
+    --surface-code: #2d313a;
+    --border-color: #3d414b;
+    --control-border: #8b909a;
+    --focus-color: #8ea2ff;
+    --error-color: #ff8fa3;
+    --success-color: #4fe0b5;
+    --link-color: #b8c6ff;
+    --button-secondary-bg: #2d313a;
+    --button-secondary-hover: #3a3f4b;
+    --dropzone-active: #343a52;
+    --disabled-bg: #2d313a;
+    --disabled-text: #a9adb5;
+    --box-shadow: 0 2px 5px rgb(0 0 0 / 40%);
+  }
+}
+
+[data-theme='dark'] {
+  --editor-color-scheme: dark;
+  --primary-color: #8ea2ff;
+  --primary-light: #2a3563;
+  --primary-dark: #b8c6ff;
+  --on-primary: #10131c;
+  --text-color: #e6e6e6;
+  --text-light: #a9adb5;
+  --background: #1b1d23;
+  --surface: #252830;
+  --surface-code: #2d313a;
+  --border-color: #3d414b;
+  --control-border: #8b909a;
+  --focus-color: #8ea2ff;
+  --error-color: #ff8fa3;
+  --success-color: #4fe0b5;
+  --link-color: #b8c6ff;
+  --button-secondary-bg: #2d313a;
+  --button-secondary-hover: #3a3f4b;
+  --dropzone-active: #343a52;
+  --disabled-bg: #2d313a;
+  --disabled-text: #a9adb5;
+  --box-shadow: 0 2px 5px rgb(0 0 0 / 40%);
+}
+
+/* Native parts the editor does not style itself (scrollbars, the unstyled
+   Remove Link button, autofill) follow the active theme too. Scoped to the
+   editor's own surfaces so the host page's colour scheme is left alone. */
+.editor-toolbar,
+.editor-container,
+.editor-docs-content,
+.link-dialog {
+  color-scheme: var(--editor-color-scheme);
 }
 
 .editor-container {
@@ -22,6 +134,10 @@
   padding: 16px;
   box-shadow: var(--box-shadow);
   background-color: var(--background);
+
+  /* Everything inside paints on --background, so it must not inherit the host
+     page's text colour (a dark host's near-white on this white was 1.05:1). */
+  color: var(--text-color);
 }
 
 /* Demo output-format selector */
@@ -59,6 +175,12 @@
     sans-serif;
   padding: 16px;
   font-size: 16px;
+}
+
+/* Links in content use the theme's link colour; the UA default (#0000ee)
+   is 2.0:1 on the dark theme's background. */
+.editor-input a {
+  color: var(--link-color);
 }
 
 /* Text formatting classes that match the theme definitions */
@@ -138,7 +260,8 @@
 }
 
 .editor-placeholder {
-  /* No opacity: #757575 on white is 4.6:1 (AA); dimming it failed axe */
+  /* No opacity: dimming --text-light failed contrast. It is 6.01:1 on white
+     (light) and 7.49:1 on the dark theme's background. */
   color: var(--text-light);
   position: absolute;
   pointer-events: none;
@@ -282,8 +405,8 @@ kbd {
   max-width: 16rem;
   padding: 4px 8px;
   border-radius: 4px;
-  background-color: #1f2933;
-  color: #fff;
+  background-color: var(--tooltip-bg, #1f2933);
+  color: var(--tooltip-text, #fff);
   font-size: 0.8125rem;
   line-height: 1.4;
   white-space: nowrap;
@@ -304,7 +427,7 @@ kbd {
   flex-wrap: wrap;
   gap: 12px;
   padding: 5px;
-  background-color: #f8f9fa;
+  background-color: var(--surface);
   border: 1px solid var(--border-color);
   box-shadow: 0 1px 3px rgb(0 0 0 / 5%);
 }
@@ -342,7 +465,13 @@ kbd {
   height: 36px;
   min-width: 36px;
   background-color: var(--background);
-  border: 1px solid var(--border-color);
+
+  /* The edge of every enabled button clears 3:1 against the toolbar (issue
+     #154's acceptance criteria hold borders to 1.4.11). Disabled buttons keep
+     the lighter --border-color below, which is part of how they read as
+     unavailable. The dialogs render inside the toolbar, so their buttons get
+     this rule too. */
+  border: 1px solid var(--control-border);
   color: var(--text-color);
   cursor: pointer;
   font-size: 14px;
@@ -353,10 +482,13 @@ kbd {
   justify-content: center;
 }
 
+/* Text on the hover fill uses --primary-dark: --primary-color on
+   --primary-light measured 4.36:1, under 1.4.3's 4.5:1 for the H1-H6 and other
+   text labels (issue #154). --primary-dark is 6.55:1 there. */
 .editor-toolbar button:hover {
   background-color: var(--primary-light);
   border-color: var(--primary-color);
-  color: var(--primary-color);
+  color: var(--primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgb(0 0 0 / 8%);
 }
@@ -372,11 +504,16 @@ kbd {
    whole button — element opacity would also fade the box-shadow focus ring,
    making the focus indicator a different (lighter) color than other buttons. */
 .editor-toolbar button[aria-disabled='true'] {
+  border-color: var(--border-color);
   cursor: not-allowed;
 }
 
+/* A muted colour rather than opacity: 50% opacity composited the icon down to
+   2.85:1, and a translucent icon's contrast shifts with whatever is behind it.
+   Disabled controls are exempt from 1.4.11, but a muted solid colour costs
+   nothing and keeps the icon legible. */
 .editor-toolbar button[aria-disabled='true'] svg {
-  opacity: 50%;
+  color: var(--text-light);
 }
 
 .editor-toolbar button[aria-disabled='true']:hover {
@@ -569,9 +706,18 @@ kbd {
 
 .form-group input {
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+
+  /* The border is the only thing that shows where the field is: 1.4.11 3:1. */
+  border: 1px solid var(--control-border);
+  background-color: var(--background);
+  color: var(--text-color);
   font-size: 14px;
   transition: var(--transition);
+}
+
+/* The UA placeholder grey is not theme-aware. */
+.form-group input::placeholder {
+  color: var(--text-light);
 }
 
 /* As above: at 20% alpha this ring measured 1.32:1 on white. */
@@ -588,7 +734,7 @@ kbd {
   align-items: center;
   gap: 8px;
   padding: 16px;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--control-border);
   border-radius: 6px;
   text-align: center;
   background-color: var(--primary-light);
@@ -596,7 +742,7 @@ kbd {
 
 .image-dropzone.dragover {
   border-color: var(--primary-color);
-  background-color: #dbe4ff;
+  background-color: var(--dropzone-active);
 }
 
 .image-dropzone-hint {
@@ -619,7 +765,7 @@ kbd {
 .upload-button:hover,
 .upload-button:focus {
   background-color: var(--primary-color);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 /* This button also fills with --primary-color on focus, so the ring is
@@ -640,7 +786,8 @@ kbd {
   color: var(--text-light);
 }
 
-.upload-status-error {
+.upload-status-error,
+.link-dialog-error {
   color: var(--error-color);
 }
 
@@ -682,20 +829,20 @@ kbd {
 
 /* Must follow the base rule above so the cascade actually disables the transition. */
 .cancel-button {
-  background-color: #f1f1f1;
+  background-color: var(--button-secondary-bg);
   border: 1px solid var(--border-color);
   color: var(--text-color);
 }
 
 .cancel-button:hover,
 .cancel-button:focus {
-  background-color: #e1e1e1;
+  background-color: var(--button-secondary-hover);
 }
 
 .insert-button {
   background-color: var(--primary-color);
   border: 1px solid var(--primary-color);
-  color: white;
+  color: var(--on-primary);
 }
 
 .insert-button:hover,
@@ -703,9 +850,12 @@ kbd {
   background-color: var(--primary-dark);
 }
 
+/* Was white on #b3c1f7 (1.77:1). Disabled controls are exempt from 1.4.3, but
+   the label still has to be readable to know what is unavailable. */
 .insert-button:disabled {
-  background-color: #b3c1f7;
-  border-color: #b3c1f7;
+  background-color: var(--disabled-bg);
+  border-color: var(--disabled-bg);
+  color: var(--disabled-text);
   cursor: not-allowed;
 }
 
@@ -735,7 +885,8 @@ kbd {
 }
 
 .html-output {
-  background-color: #f8f9fa;
+  background-color: var(--surface);
+  color: var(--text-color);
   padding: 16px;
   overflow: auto;
   max-height: 250px;
@@ -772,6 +923,7 @@ kbd {
 .editor-outline-link {
   background: none;
   border: none;
+  color: var(--text-color);
   cursor: pointer;
   text-decoration: underline;
   font-size: 1rem;
@@ -784,6 +936,7 @@ kbd {
 
 .editor-word-count {
   padding: 6px 12px;
+  color: var(--text-color);
   font-size: 0.875rem;
   text-align: right;
   border-top: 1px solid var(--border-color);
@@ -791,7 +944,7 @@ kbd {
 
 .editor-text-code {
   font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
-  background-color: #f1f3f5;
+  background-color: var(--surface-code);
   padding: 1px 4px;
   border-radius: 3px;
 }
@@ -799,7 +952,7 @@ kbd {
 .editor-code-block {
   display: block;
   font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
-  background-color: #f8f9fa;
+  background-color: var(--surface);
   padding: 12px 16px;
   margin: 8px 0;
   border: 1px solid var(--border-color);
