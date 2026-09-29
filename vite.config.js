@@ -61,6 +61,14 @@ function afixtEngineDevEndpoint() {
           response.end();
           return;
         }
+        // Only a JSON request: a cross-site page can POST a "simple" text/plain
+        // body without a CORS preflight, which would let any site the developer
+        // visits have this machine render arbitrary HTML in headless Chrome.
+        if (!/^application\/json\b/.test(request.headers['content-type'] || '')) {
+          response.statusCode = 415;
+          response.end();
+          return;
+        }
         try {
           const { html } = JSON.parse(await readBody(request));
           const issues = await (await getChecker())({ html });

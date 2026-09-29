@@ -320,7 +320,9 @@ export function AccessibilityCheckPlugin({ checker }) {
         <ol className="editor-a11y-check-list" aria-label={t('a11yIssuesList')}>
           {results.map((entry, index) => (
             <IssueItem
-              key={entry.issue.id || index}
+              // Index first: ids come from the host's checker and are not
+              // guaranteed unique.
+              key={`${index}-${entry.issue.id}`}
               entry={entry}
               index={index}
               idPrefix={idPrefix}
