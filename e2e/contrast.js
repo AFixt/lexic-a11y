@@ -48,35 +48,54 @@ export const contrastRatio = (one, two) => {
  */
 const readPaints = (page, selector, { property = 'color', behind = 'self' } = {}) =>
   page.evaluate(
-    ({ sel, prop, from }) =>
-      [...document.querySelectorAll(sel)].map((element) => {
-        const styles = getComputedStyle(element);
+    ({ sel, prop, from }) => {
+      const alphaOf = (color) => {
+        const match = /rgba?\(([^)]+)\)/.exec(color);
+        return match ? Number.parseFloat(match[1].split(',')[3] ?? '1') : 0;
+      };
 
-        // Every painted layer matters: a translucent background is not the
-        // backdrop itself, it is composited over whatever is beneath it.
-        const backgrounds = [];
-        const start = from === 'parent' ? element.parentElement : element;
+      // Every painted layer matters: a translucent background is not the
+      // backdrop itself, it is composited over whatever is beneath it.
+      const backgroundStack = (start) => {
+        const layers = [];
         for (let node = start; node; node = node.parentElement) {
           const background = getComputedStyle(node).backgroundColor;
-          const match = /rgba?\(([^)]+)\)/.exec(background);
-          const alpha = match ? Number.parseFloat(match[1].split(',')[3] ?? '1') : 0;
-          if (alpha > 0) {
-            backgrounds.push(background);
-            if (alpha === 1) break;
-          }
+          const alpha = alphaOf(background);
+          if (alpha > 0) layers.push(background);
+          if (alpha === 1) return { layers, backdropNode: node };
         }
+        return { layers, backdropNode: null };
+      };
 
+      // `opacity` fades the paint toward whatever is behind it, so it counts as
+      // much as a translucent colour does: a 50%-opacity icon is seen at half
+      // strength however solid its `color` is.
+      const opacityBetween = (element, backdropNode) => {
+        let opacity = 1;
+        for (let node = element; node && node !== backdropNode; node = node.parentElement) {
+          opacity *= Number.parseFloat(getComputedStyle(node).opacity);
+        }
+        return opacity;
+      };
+
+      return [...document.querySelectorAll(sel)].map((element) => {
+        const styles = getComputedStyle(element);
+        const { layers, backdropNode } = backgroundStack(
+          from === 'parent' ? element.parentElement : element,
+        );
         const owner = element.closest('button') || element;
         return {
           label:
             owner.getAttribute('aria-label') ||
             `${owner.tagName.toLowerCase()} "${(owner.textContent || '').trim().slice(0, 30)}"`,
           paint: styles.getPropertyValue(prop),
+          opacity: opacityBetween(element, backdropNode),
           fontSize: Number.parseFloat(styles.fontSize),
           fontWeight: Number.parseFloat(styles.fontWeight),
-          backgrounds,
+          backgrounds: layers,
         };
-      }),
+      });
+    },
     { sel: selector, prop: property, from: behind },
   );
 
@@ -99,8 +118,9 @@ const expectPaints = async (page, selector, options, thresholdFor) => {
 
   for (const entry of entries) {
     const backdrop = compositeBackdrop(entry.backgrounds);
-    const paint = parseColor(entry.paint);
-    expect(paint, `${entry.label}: ${entry.paint} is not a colour`).not.toBeNull();
+    const parsed = parseColor(entry.paint);
+    expect(parsed, `${entry.label}: ${entry.paint} is not a colour`).not.toBeNull();
+    const paint = { ...parsed, a: parsed.a * entry.opacity };
     const ratio = contrastRatio(flatten(paint, backdrop), backdrop);
     const backdropLabel = `rgb(${Math.round(backdrop.r)}, ${Math.round(backdrop.g)}, ${Math.round(backdrop.b)})`;
 
