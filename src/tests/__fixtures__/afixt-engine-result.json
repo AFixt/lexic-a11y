@@ -1,0 +1,302 @@
+{
+  "versions": {
+    "engine": "6.1.1",
+    "afixt-tests": "1.40.1",
+    "test-utils": "2.26.1"
+  },
+  "runtime": "browser",
+  "coverage": {
+    "ran": 280,
+    "vacuous": false
+  },
+  "tests": [
+    {
+      "id": "NON-TEXT-CONTENT-01",
+      "type": "auto_assisted",
+      "status": "fail",
+      "contentCategory": "Images and other non-text content",
+      "checkTitle": "Ensure that content images have alternate text (including CSS images which are used as content).",
+      "description": "All foreground images must have either a text-based alternative or a means of causing text-to-speech software to ignore the image must be provided.",
+      "impactStatement": "Assistive technology users rely on alternate text to understand the meaning of content images, and when alternate text is not defined, such users may have no idea what the image represents.",
+      "priority": "High",
+      "severity": "High",
+      "applicableStandards": [
+        {
+          "name": "Web Content Accessibility Guidelines (WCAG)",
+          "version": "2.2",
+          "principle": "Perceivable",
+          "guideline": "1.1 Text Alternatives",
+          "success_criteria": {
+            "short": "1.1.1 Non-text Content",
+            "long": "## Success Criterion 1.1.1: Non-text Content\nAll non-text content that is presented to the user has a text alternative that serves the equivalent purpose, except for the situations listed below.\n\n- **Controls, Input:** If non-text content is a control or accepts user input, then it has a name that describes its purpose.\n- **Time-Based Media:** If non-text content is time-based media, then text alternatives at least provide descriptive identification of the non-text content.\n- **Test:** If non-text content is a test or exercise that would be invalid if presented in text, then text alternatives at least provide descriptive identification of the non-text content.\n- **Sensory:** If non-text content is primarily intended to create a specific sensory experience, then text alternatives at least provide descriptive identification of the non-text content.\n- **CAPTCHA:** If the purpose of non-text content is to confirm that content is being accessed by a person rather than a computer, then text alternatives that identify and describe the purpose of the non-text content are provided, and alternative forms of CAPTCHA using output modes for different types of sensory perception are provided to accommodate different disabilities.\n- **Decoration, Formatting, Invisible:** If non-text content is pure decoration, is used only for visual formatting, or is not presented to users, then it is implemented in a way that it can be ignored by assistive technology."
+          },
+          "level": "A",
+          "id": "WCAG"
+        }
+      ],
+      "references": [
+        "[Understanding Non Text Content | WCAG 2.2](https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html)",
+        "[F65: Failure of Success Criterion 1.1.1 due to omitting the alt attribute or text alternative on img elements, area elements, and input elements of type image](https://www.w3.org/WAI/WCAG22/Techniques/failures/F65)",
+        "[ACT Rule: Image has non-empty accessible name](https://www.w3.org/WAI/standards-guidelines/act/rules/23a2a8/)"
+      ],
+      "issueStats": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "inapplicable": 0
+      },
+      "issues": [
+        {
+          "issueId": "01a0eed9-41b7-7151-8a2d-e00881842f5d",
+          "timestamp": "2026-09-29T20:26:50.678Z",
+          "signature": "d3a1d3e0cc9c79bd0303f51a25fbd71f",
+          "location": {
+            "xpath": "/html[1]/body[1]/main[1]/p[1]/img[1]",
+            "selector": "html > body > main > p > img",
+            "viewport": {
+              "width": 16,
+              "height": 16,
+              "topLeft": {
+                "x": 8,
+                "y": 119.140625
+              },
+              "bottomRight": {
+                "x": 24,
+                "y": 135.140625
+              }
+            },
+            "viewportLocation": {
+              "width": 16,
+              "height": 16,
+              "topLeft": {
+                "x": 8,
+                "y": 119.140625
+              },
+              "bottomRight": {
+                "x": 24,
+                "y": 135.140625
+              }
+            },
+            "documentLocation": {
+              "width": 16,
+              "height": 16,
+              "topLeft": {
+                "x": 8,
+                "y": 119.140625
+              },
+              "bottomRight": {
+                "x": 24,
+                "y": 135.140625
+              }
+            },
+            "framePath": [],
+            "frameUrl": null
+          },
+          "codeInError": {
+            "snippet": "<img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\" data-lexic-a11y-ref=\"5\">",
+            "fullNode": "<p data-lexic-a11y-ref=\"4\"><img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\" data-lexic-a11y-ref=\"5\"></p>"
+          },
+          "details": "`<img>` has no text alternative",
+          "remediation": {
+            "description": "All foreground images should have an alt attribute. Informative images should have clear and informative text. Decorative images should have an empty alt attribute. Decorative background images may remain as background images. Informative background images must be changed to foreground images with clear and informative alt text.",
+            "code": ""
+          },
+          "relatedIssues": []
+        }
+      ],
+      "issueTitle": "Image(s) are missing text alternatives",
+      "expected": "All images have an alt attribute, and the alt text is appropriate.",
+      "actual": "Some images do not have an alt attribute, or do not have appropriate alt text.",
+      "manualVerification": "1. Use devtools to inspect each `<img>` element.\n1. If the image conveys information, it should have a non-empty `alt` attribute. \n1. Use devtools to inspect each `<svg>` element.\n1. If the SVG image conveys information, it should have an accessible name, usually `aria-label`.\n1. Use devtools to inspect each element which has a CSS background image.\n1. If the background image conveys information, it should have programmatically associated text (or text inside the same element) which serves the same function as alt text.\n1. Use a screenreader to confirm that the accessible text of all informative images is conveyed.\n",
+      "criteriaDescription": "Images exist on the page.",
+      "exceptionsDescription": "1. Images which are purely decorative and do not convey information.",
+      "measuredViewport": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "id": "STRUCTURE-08",
+      "type": "automatic",
+      "status": "fail",
+      "contentCategory": "Document Structure",
+      "checkTitle": "Ensure that headings follow proper hierarchy, with unique page content starting with H1 and not skipping levels.",
+      "description": "Headings should be implemented in the correct hierarchical order to convey the structure of the page.",
+      "impactStatement": "Headings provide important wayfinding points for assistive technology users, and help to provide context for the content that follows them. When headings are missing or improperly defined, it may be more difficult for such users to understand and navigate the content.",
+      "priority": "Medium",
+      "severity": "Low",
+      "applicableStandards": [
+        {
+          "name": "AUX",
+          "id": "AUX"
+        }
+      ],
+      "references": [
+        "[Understanding Info And Relationships | WCAG 2.2](https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html)",
+        "[Understanding Headings And Labels | WCAG 2.2](https://www.w3.org/WAI/WCAG22/Understanding/headings-and-labels.html)",
+        "[F43: Failure of Success Criterion 1.3.1 due to using structural markup in a way that does not represent relationships in the content](https://www.w3.org/WAI/WCAG22/Techniques/failures/F43)"
+      ],
+      "issueStats": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "inapplicable": 0
+      },
+      "issues": [
+        {
+          "issueId": "01a0eed9-41b8-7609-96d2-8e18c954378d",
+          "timestamp": "2026-09-29T20:26:50.680Z",
+          "signature": "4a452177c59f5d3d0fbafca263379a35",
+          "location": {
+            "xpath": "/html[1]/body[1]/main[1]/h4[1]",
+            "selector": "html > body > main > h4",
+            "viewport": {
+              "width": 1264,
+              "height": 18,
+              "topLeft": {
+                "x": 8,
+                "y": 79.875
+              },
+              "bottomRight": {
+                "x": 1272,
+                "y": 97.875
+              }
+            },
+            "viewportLocation": {
+              "width": 1264,
+              "height": 18,
+              "topLeft": {
+                "x": 8,
+                "y": 79.875
+              },
+              "bottomRight": {
+                "x": 1272,
+                "y": 97.875
+              }
+            },
+            "documentLocation": {
+              "width": 1264,
+              "height": 18,
+              "topLeft": {
+                "x": 8,
+                "y": 79.875
+              },
+              "bottomRight": {
+                "x": 1272,
+                "y": 97.875
+              }
+            },
+            "framePath": [],
+            "frameUrl": null
+          },
+          "codeInError": {
+            "snippet": "<h4 data-lexic-a11y-ref=\"2\"><span data-lexic-a11y-ref=\"3\">Skipped a level</span></h4>",
+            "fullNode": "<main><h1 data-lexic-a11y-ref=\"0\"><span data-lexic-a11y-ref=\"1\">Report</span></h1><h4 data-lexic-a11y-ref=\"2\"><span data-lexic-a11y-ref=\"3\">Skipped a level</span></h4><p data-lexic-a11y-ref=\"4\"><img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\" data-lexic-a11y-ref=\"5\"></p></main>"
+          },
+          "details": "Heading level skips from H1 to H4 (skipped H2)",
+          "remediation": {
+            "description": "Use `<h1>` for the primary heading that describes the main content of the page (often this will be the same or similar to the `<title>` text). Use `<h2>` for major sections within a page, and use `<h3>` for sub-sections of those major sections. If the content is sufficiently complex, `<h4>` to `<h6>` can be used for further subdivisions. Ensure that a valid hierarchy is maintained: do not skip heading levels (e.g. going straight from `<h2>` to `<h4>`) or wrap headings inside each other. Do not rely on visual styling to convey headings (i.e. use proper heading elements), and conversely, do not use heading markup for text which is not a heading. In some cases, it may be helpful to add headings to describe major sections, even if the design and layout conveys the sections clearly. Visual design cues do not benefit blind users, whereas additional headings can describe the sections explicitly. In such cases, visually-hidden headings can be used (i.e. headings which are positioned off-screen so that they're not visible to sighted users).",
+            "code": ""
+          },
+          "relatedIssues": []
+        }
+      ],
+      "issueTitle": "Headings are in incorrect hierarchical order",
+      "expected": "Headings are implemented in the correct hierarchical order to convey the structure of the page.",
+      "actual": "Headings are not implemented in the correct hierarchical order.",
+      "manualVerification": "1. This rule reports two distinct defects; identify which one a finding is before adjudicating it. A finding whose details begin \"The document has headings but no `h1`\" is the MISSING TOP-LEVEL HEADING case — the page has a heading hierarchy but nothing at level 1, so a screen-reader user navigating by heading lands in a subsection with nothing establishing what the page is about. Steps 2 and 3 below concern the SKIPPED LEVEL case instead and do not apply to it.\n1. For a missing top-level heading, confirm in devtools that no `h1` and no `role=\"heading\"` with `aria-level=\"1\"` is exposed to assistive technology. A visually-hidden `h1` still counts and the finding is withheld; only removal from the accessibility tree (`aria-hidden`, `inert`) disqualifies one. A document inside a frame is exempt, because the embedding page supplies the top-level heading.\n1. For each flagged heading, inspect it in devtools and read its level (the tag `h1`-`h6`, or `aria-level` for a `role=\"heading\"`) alongside the preceding heading.\n1. Confirm the level jumps down by more than one (for example `H1` straight to `H3`), skipping at least one level.\n1. Correct the hierarchy so heading levels descend one step at a time and match the structure of the content — change the flagged heading to the next sequential level, or add the missing intermediate heading.\n1. This finding is advisory. A skipped heading level fails neither cited criterion. 1.3.1 Info and Relationships requires that structure conveyed through presentation be programmatically determinable: a section title that looks like a heading and is marked up as a heading IS determinable, whatever its level. Sequential heading levels come from G141, which is a SUFFICIENT TECHNIQUE, not a requirement — not using a technique is not a failure, and WCAG documents no failure technique for a skipped level. 2.4.6 Headings and Labels requires only that headings describe topic or purpose, which a descriptive section title does. Report level skips as a structural recommendation.\n1. Report a conformance failure only where the heading is not marked up as a heading at all, which is 1.3.1, or where its text does not describe the section it introduces, which is 2.4.6. A jump from H1 to H3 is neither of those on its own.",
+      "criteriaDescription": "All heading elements and elements with a role of heading.",
+      "exceptionsDescription": "1. Modal dialogs are technically a new document context, but they can start with `<h2>` since they're conceptually a section of the triggering document.",
+      "measuredViewport": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "id": "ARIA-19",
+      "type": "automatic",
+      "status": "pass",
+      "contentCategory": "ARIA",
+      "checkTitle": "Ensure that the `aria-hidden` attribute is not used on `<body>` element.",
+      "description": "The `body` element on this page uses the `aria-hidden` attribute with the value of true\". Having an `aria-hidden` attribute with the value \"true\" means that none of the content will be available to users of ARIA-supporting assistive technologies like screen readers. Remove the `aria-hidden` from the `<body>` element. If this is being used to create a modal dialog",
+      "impactStatement": "The aria-hidden=\"true\" attribute is used to hide the content from assistive technology users. Although it is a best practice to use the aria-hidden=\"true\" attribute to hide irrelevant content for screen reader users, it can pose issues for screen reader users if it is not used correctly",
+      "priority": "High",
+      "severity": "High",
+      "applicableStandards": [
+        {
+          "name": "Web Content Accessibility Guidelines (WCAG)",
+          "version": "2.2",
+          "principle": "Robust",
+          "guideline": "4.1 Compatible",
+          "success_criteria": {
+            "short": "4.1.2 Name, Role, Value",
+            "long": "## Success Criterion 4.1.2: Name, Role, Value\nFor all user interface components (including but not limited to: form elements, links and components generated by scripts), the name and role can be programmatically determined; states, properties, and values that can be set by the user can be programmatically set; and notification of changes to these items is available to user agents, including assistive technologies."
+          },
+          "level": "A",
+          "id": "WCAG"
+        }
+      ],
+      "references": [
+        "[Understanding Name Role Value | WCAG 2.2](https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html)",
+        "[Wai Aria 1.1](https://www.w3.org/TR/wai-aria-1.1/#aria-hidden)",
+        "[WCAG Technique ARIA4](https://www.w3.org/WAI/WCAG22/Techniques/aria/ARIA4.html)"
+      ],
+      "issueStats": {
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "inapplicable": 0
+      },
+      "issues": [],
+      "issueTitle": "The `aria-hidden` attribute is on `<body>` element.",
+      "expected": "The `aria-hidden` attribute is not on `<body>` element.",
+      "actual": "The `<body>` element has an `aria-hidden` attribute with a value that hides it from assistive technology. See the per-element details for the value found.",
+      "manualVerification": "1. Inspect the code of the page.\n1. Check that `<body>` element is defined with aria-hidden attribute.",
+      "criteriaDescription": "The body element is present.",
+      "measuredViewport": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "id": "ARIA-22",
+      "type": "automatic",
+      "status": "n/a",
+      "contentCategory": "ARIA",
+      "checkTitle": "Avoid using both `aria-label` and `aria-labelledby` attributes.",
+      "description": "This element uses both `aria-label` and `aria-labelledby` attributes.  As they both create accessible names, only one of these attributes can be used as a label. When user agents compute the accessible name of elements with both an `aria-labelledby` and an `aria-label` attribute, precedence goes to `aria-labelledby`. If the intent is to provide an accessible name for an element that doesn't have one, use `aria-label` only. If the intent is to create links between objects and labels for assistive technology to help users navigate content, use `aria-labelledby` only.",
+      "impactStatement": "Screen reader users hear only one of the two labels: the `aria-labelledby` text when it resolves to text, otherwise the `aria-label`. The other label is never announced. Where it holds the text the author meant, what users hear differs from what was intended, and an edit to either label can change the announced name without anyone noticing.",
+      "priority": "High",
+      "severity": "High",
+      "applicableStandards": [
+        {
+          "name": "AUX",
+          "id": "AUX"
+        }
+      ],
+      "references": [
+        "[WAI-ARIA 1.2: aria-label](https://www.w3.org/TR/wai-aria-1.2/#aria-label)",
+        "[WAI-ARIA 1.2: aria-labelledby](https://www.w3.org/TR/wai-aria-1.2/#aria-labelledby)",
+        "[Accessible Name and Description Computation](https://www.w3.org/TR/accname-1.2/)",
+        "[WCAG Technique ARIA6](https://www.w3.org/WAI/WCAG22/Techniques/aria/ARIA6.html)"
+      ],
+      "issueStats": {
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "inapplicable": 0
+      },
+      "issues": [],
+      "issueTitle": "Elements use both `aria-label` and `aria-labelledby` attributes",
+      "expected": "Elements do not use both `aria-label` and `aria-labelledby` attributes",
+      "actual": "An element uses both `aria-label` and `aria-labelledby` attributes.",
+      "manualVerification": "1. For each flagged element, inspect both the aria-label value and the element(s) referenced by aria-labelledby in devtools.\n1. Note that aria-labelledby takes precedence over aria-label, so the aria-labelledby content is what determines the accessible name.\n1. Check the referenced elements in aria-labelledby to ensure they contain appropriate labeling text.\n1. Determine the intended labeling approach and remove either aria-label or aria-labelledby so a single, unambiguous name remains.",
+      "criteriaDescription": "Items with both `aria-label` and `aria-labelledby` attributes.",
+      "measuredViewport": {
+        "width": 1280,
+        "height": 720
+      }
+    }
+  ],
+  "input": "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><title>Editor content</title></head><body><main><h1 data-lexic-a11y-ref=\"0\"><span data-lexic-a11y-ref=\"1\">Report</span></h1><h4 data-lexic-a11y-ref=\"2\"><span data-lexic-a11y-ref=\"3\">Skipped a level</span></h4><p data-lexic-a11y-ref=\"4\"><img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\" data-lexic-a11y-ref=\"5\"></p></main></body></html>"
+}

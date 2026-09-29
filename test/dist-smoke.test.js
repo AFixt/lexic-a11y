@@ -69,3 +69,49 @@ describe.each(BUNDLES)('$name bundle ($file)', ({ file }) => {
     expect(typeof bundle.i18n.t).toBe('function');
   });
 });
+
+// The server-side afixt-engine adapter is its own entry (issue #155): Node
+// hosts load it without the editor, so it must not drag React, Lexical or the
+// engine itself in with it.
+describe.each([
+  { name: 'CJS', file: 'afixt-engine.js' },
+  { name: 'ESM', file: 'afixt-engine.esm.js' },
+])('afixt-engine adapter, $name ($file)', ({ file }) => {
+  it('imports nothing', () => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is built from __dirname, not input
+    const code = fs
+      .readFileSync(path.join(DIST, file), 'utf8')
+      // The header comment shows host wiring with require(); that is prose.
+      .replace(/^\s*\/\/.*$/gm, '');
+    expect(code).not.toMatch(/\brequire\(|^\s*import\s/m);
+  });
+});
+
+describe('afixt-engine adapter (CJS)', () => {
+  it('turns an engine result into editor issues through an injected engine', async () => {
+    const { createAfixtEngineChecker, toAccessibilityIssues } = require(
+      path.join(DIST, 'afixt-engine.js'),
+    );
+    const result = {
+      tests: [
+        {
+          id: 'RULE-1',
+          status: 'fail',
+          type: 'automatic',
+          checkTitle: 'A check',
+          issues: [{ issueId: 'one', location: { xpath: '/html[1]/body[1]/main[1]/p[1]' } }],
+        },
+      ],
+    };
+
+    expect(toAccessibilityIssues(result)).toHaveLength(1);
+    const check = createAfixtEngineChecker({ test: async () => result });
+    await expect(check({ html: '<p>x</p>' })).resolves.toEqual([
+      expect.objectContaining({ id: 'one', ruleId: 'RULE-1', title: 'A check' }),
+    ]);
+  });
+
+  it('ships its type declarations beside it', () => {
+    expect(fs.existsSync(path.join(DIST, 'afixt-engine.d.ts'))).toBe(true);
+  });
+});

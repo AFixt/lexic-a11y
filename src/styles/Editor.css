@@ -782,6 +782,132 @@ kbd {
   font-weight: 700;
 }
 
+/* Accessibility check panel (issue #155), rendered only when the host passes
+   an accessibilityChecker. Laid out like the outline panel above. */
+.editor-a11y-check {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.editor-a11y-check-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* A <div>, not a heading, for the same reason as .editor-outline-title. */
+.editor-a11y-check-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.editor-a11y-check-run,
+.editor-a11y-check-show {
+  padding: 6px 14px;
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  background-color: var(--background);
+  color: var(--primary-dark);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.editor-a11y-check-run:hover,
+.editor-a11y-check-show:hover,
+.editor-a11y-check-run:focus,
+.editor-a11y-check-show:focus {
+  background-color: var(--primary-light);
+}
+
+.editor-a11y-check-run:focus-visible,
+.editor-a11y-check-show:focus-visible,
+.editor-a11y-check-help:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.editor-a11y-check-run[aria-disabled='true'] {
+  cursor: progress;
+}
+
+.editor-a11y-check-status p {
+  margin: 8px 0 0;
+}
+
+.editor-a11y-check-list {
+  margin: 12px 0 0;
+  padding-left: 1.5rem;
+}
+
+.editor-a11y-check-item + .editor-a11y-check-item {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.editor-a11y-check-item-title {
+  font-weight: 600;
+}
+
+.editor-a11y-check-meta {
+  margin: 4px 0 0;
+  color: var(--text-light);
+  font-size: 0.875rem;
+}
+
+.editor-a11y-check-detail {
+  margin: 4px 0 0;
+}
+
+.editor-a11y-check-fix {
+  margin-top: 4px;
+}
+
+.editor-a11y-check-fix summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.editor-a11y-check-fix summary:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.editor-a11y-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.editor-a11y-check-help {
+  color: var(--primary-dark);
+}
+
+/* Content a finding belongs to. An outline, so nothing reflows and the mark is
+   a shape rather than a colour alone; #d4600c clears 3:1 against both a white
+   and a dark editing surface (3.83:1 and 4.39:1). The finding being shown is
+   solid and thicker. */
+.editor-input [data-lexic-a11y-issue] {
+  outline: 2px dashed var(--a11y-issue-color, #d4600c);
+  outline-offset: 2px;
+}
+
+.editor-input [data-lexic-a11y-issue='active'] {
+  outline: 3px solid var(--a11y-issue-color, #d4600c);
+}
+
+@media (forced-colors: active) {
+  .editor-input [data-lexic-a11y-issue] {
+    outline-color: Highlight;
+  }
+}
+
 .editor-word-count {
   padding: 6px 12px;
   font-size: 0.875rem;

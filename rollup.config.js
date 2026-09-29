@@ -16,18 +16,18 @@ const shouldVisualize = process.env.ANALYZE === 'true';
 // `src/index.d.ts` is hand-maintained; copy it to the path `package.json`
 // advertises as `types` so TypeScript consumers resolve real types instead of
 // silently falling back to `any`.
-function copyTypeDeclarations() {
+function copyTypeDeclarations(source, destination) {
   return {
     name: 'copy-type-declarations',
     // `writeBundle` runs after the bundle is on disk, so the output directory
     // already exists — no mkdir needed.
     writeBundle() {
-      fs.copyFileSync(path.resolve('src/index.d.ts'), path.resolve(packageJson.types));
+      fs.copyFileSync(path.resolve(source), path.resolve(destination));
     },
   };
 }
 
-export default {
+const editorBundle = {
   // Side-effect-free library entry. `src/index.js` is the Vite demo bootstrap
   // (it renders into `#root`) and must NOT be the published entry, or importing
   // the package would try to mount the demo app in the host page.
@@ -72,7 +72,7 @@ export default {
       minimize: true,
     }),
     terser(),
-    copyTypeDeclarations(),
+    copyTypeDeclarations('src/index.d.ts', packageJson.types),
     shouldVisualize &&
       visualizer({
         filename: 'reports/bundle-stats.html',
@@ -83,3 +83,18 @@ export default {
   ].filter(Boolean),
   external: Object.keys(packageJson.peerDependencies || {}),
 };
+
+// The server-side @afixt/afixt-engine adapter (issue #155), a separate entry so
+// Node hosts can load it without the editor, React or Lexical. It imports
+// nothing — the host passes its own engine in — so there is nothing to
+// resolve, transpile for browsers, or mark external.
+const afixtEngineAdapter = {
+  input: 'src/afixt-engine.js',
+  output: [
+    { file: 'dist/afixt-engine.js', format: 'cjs', sourcemap: true, exports: 'named' },
+    { file: 'dist/afixt-engine.esm.js', format: 'esm', sourcemap: true },
+  ],
+  plugins: [copyTypeDeclarations('src/afixt-engine.d.ts', 'dist/afixt-engine.d.ts')],
+};
+
+export default [editorBundle, afixtEngineAdapter];
