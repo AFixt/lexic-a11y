@@ -465,7 +465,13 @@ kbd {
   height: 36px;
   min-width: 36px;
   background-color: var(--background);
-  border: 1px solid var(--border-color);
+
+  /* The edge of every enabled button clears 3:1 against the toolbar (issue
+     #154's acceptance criteria hold borders to 1.4.11). Disabled buttons keep
+     the lighter --border-color below, which is part of how they read as
+     unavailable. The dialogs render inside the toolbar, so their buttons get
+     this rule too. */
+  border: 1px solid var(--control-border);
   color: var(--text-color);
   cursor: pointer;
   font-size: 14px;
@@ -498,6 +504,7 @@ kbd {
    whole button — element opacity would also fade the box-shadow focus ring,
    making the focus indicator a different (lighter) color than other buttons. */
 .editor-toolbar button[aria-disabled='true'] {
+  border-color: var(--border-color);
   cursor: not-allowed;
 }
 
@@ -727,7 +734,7 @@ kbd {
   align-items: center;
   gap: 8px;
   padding: 16px;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--control-border);
   border-radius: 6px;
   text-align: center;
   background-color: var(--primary-light);

@@ -51,9 +51,15 @@ for (const theme of THEMES) {
       expect(await surfaceIsDark(page)).toBe(theme.dark);
     });
 
-    test('idle toolbar: text and icons', async ({ page }) => {
+    test('idle toolbar: text, icons and button edges', async ({ page }) => {
       await expectReadableText(page, '.editor-toolbar button');
       await expectPaintContrast(page, '.editor-toolbar button svg', { min: NON_TEXT });
+      // Disabled buttons are exempt from 1.4.11 and deliberately lighter.
+      await expectPaintContrast(page, '.editor-toolbar button:not([aria-disabled="true"])', {
+        property: 'border-top-color',
+        behind: 'parent',
+        min: NON_TEXT,
+      });
     });
 
     test('hovered toolbar buttons: text, icon and border', async ({ page }) => {
@@ -141,6 +147,11 @@ for (const theme of THEMES) {
         min: NON_TEXT,
       });
       await expectReadableText(page, '.cancel-button');
+      await expectPaintContrast(page, '.cancel-button', {
+        property: 'border-top-color',
+        behind: 'parent',
+        min: NON_TEXT,
+      });
       // Insert is disabled until the URL is valid — exempt, but still legible.
       await expect(page.locator('.insert-button')).toBeDisabled();
       await expectReadableText(page, '.insert-button');
@@ -176,6 +187,12 @@ for (const theme of THEMES) {
 
       await expectReadableText(page, '.link-dialog h3');
       await expectReadableText(page, '.image-dropzone-hint');
+      // The drop zone is a drop target; its dashed edge is what shows where.
+      await expectPaintContrast(page, '.image-dropzone', {
+        property: 'border-top-color',
+        behind: 'parent',
+        min: NON_TEXT,
+      });
       await expectReadableText(page, '.upload-button');
       await page.locator('.upload-button').hover();
       await expectReadableText(page, '.upload-button');
