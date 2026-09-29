@@ -72,6 +72,8 @@ editing more accessible to all users.
 - Accessibility (WCAG Compliant):
   - ARIA roles and labels throughout the UI.
   - Fully keyboard accessible, including a roving-tabindex toolbar.
+  - Optional in-context accessibility checking with @afixt/afixt-engine (see the
+    `accessibilityChecker` prop).
   - Semantic HTML output for screen readers and other assistive technologies.
 
 ### Keyboard shortcuts
@@ -195,13 +197,100 @@ export default function App() {
 
 #### Editor props
 
-| Prop              | Type                              | Default  | Description                                                                                                                                                                                                             |
-| ----------------- | --------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `onContentChange` | `(content: string) => void`       | —        | Called on every edit with the serialized content, in the format chosen by `outputFormat`.                                                                                                                               |
-| `outputFormat`    | `'html' \| 'markdown'`            | `'html'` | Format passed to `onContentChange`: cleaned HTML or Markdown. Nodes without a Markdown form (tables, images, horizontal rules) are omitted from Markdown output.                                                        |
-| `onImageUpload`   | `(file: File) => Promise<string>` | —        | Optional. When provided, the Insert Image dialog gains a drag-and-drop zone and file picker; the handler receives the chosen `File` and must resolve to the URL to embed.                                               |
-| `initialValue`    | `string`                          | —        | Optional trusted HTML used to seed the editor once, on mount (e.g. a saved draft or template). Images, tables, and code blocks are preserved. Later changes to this prop are ignored so user edits are never clobbered. |
-| `showOutline`     | `boolean`                         | `false`  | Whether to render the Document Outline panel below the editing surface. Off by default, which suits short-form embedded fields (a reply box, a ticket description). Pass `true` for long-form authoring.                |
+| Prop                   | Type                                                           | Default  | Description                                                                                                                                                                                                             |
+| ---------------------- | -------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onContentChange`      | `(content: string) => void`                                    | —        | Called on every edit with the serialized content, in the format chosen by `outputFormat`.                                                                                                                               |
+| `outputFormat`         | `'html' \| 'markdown'`                                         | `'html'` | Format passed to `onContentChange`: cleaned HTML or Markdown. Nodes without a Markdown form (tables, images, horizontal rules) are omitted from Markdown output.                                                        |
+| `onImageUpload`        | `(file: File) => Promise<string>`                              | —        | Optional. When provided, the Insert Image dialog gains a drag-and-drop zone and file picker; the handler receives the chosen `File` and must resolve to the URL to embed.                                               |
+| `initialValue`         | `string`                                                       | —        | Optional trusted HTML used to seed the editor once, on mount (e.g. a saved draft or template). Images, tables, and code blocks are preserved. Later changes to this prop are ignored so user edits are never clobbered. |
+| `showOutline`          | `boolean`                                                      | `false`  | Whether to render the Document Outline panel below the editing surface. Off by default, which suits short-form embedded fields (a reply box, a ticket description). Pass `true` for long-form authoring.                |
+| `accessibilityChecker` | `(request: { html: string }) => Promise<AccessibilityIssue[]>` | —        | Optional. Adds an Accessibility check panel that sends the content to this function and shows the issues in context. See [Accessibility checking](#accessibility-checking-with-afixt-engine).                           |
+
+#### Accessibility checking with afixt-engine
+
+Pass `accessibilityChecker` and an **Accessibility check** panel appears below
+the editing surface. The author presses **Check accessibility**. The panel then:
+
+- announces the result in a polite status message;
+- lists each issue with its severity, WCAG criteria, the reason it failed, and
+  how to fix it;
+- outlines the affected content in place.
+
+Each issue has a **Show in content** button that moves the caret onto the
+affected content and scrolls it into view, so keyboard and screen-reader users
+land on it directly. Any edit clears the outlines and marks the results out of
+date, so a stale result is never shown as current.
+
+The checker receives the content as a complete HTML document and resolves to an
+array of issues, each with a `title` and an `xpath` or `selector` into that
+document (see `AccessibilityIssue` in `dist/index.d.ts`). Issues found on the
+wrapper the editor adds around the content (`<html>`, `<head>`, `<body>`,
+`<main>`) are not shown.
+
+`@afixt/afixt-engine` runs a headless browser, so it runs on your server, not in
+the page. The package ships an adapter for it at
+`@afixt/lexic-a11y/dist/afixt-engine.js` (ESM: `dist/afixt-engine.esm.js`). The
+adapter doesn't import the engine. You create the engine, own it, and pass it
+in:
+
+```js
+// server.js
+const { AccessibilityEngine } = require('@afixt/afixt-engine');
+const {
+  createAfixtEngineChecker,
+} = require('@afixt/lexic-a11y/dist/afixt-engine.js');
+
+const engine = new AccessibilityEngine();
+const check = createAfixtEngineChecker(engine); // engine default: WCAG 2.2 AA
+// Or every rule, including best practices such as heading order:
+// createAfixtEngineChecker(engine, { standards: '*' });
+
+app.post(
+  '/api/a11y-check',
+  express.json({ limit: '1mb' }),
+  async (req, res) => {
+    res.json(await check({ html: req.body.html }));
+  },
+);
+process.on('SIGTERM', () => engine.close());
+```
+
+```jsx
+// In the page
+const checkAccessibility = async (request) => {
+  const response = await fetch('/api/a11y-check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+};
+
+<Editor
+  onContentChange={setContent}
+  accessibilityChecker={checkAccessibility}
+/>;
+```
+
+Treat the endpoint like any other that renders submitted HTML in a browser on
+your server:
+
+- put it behind your authentication;
+- cap the request size;
+- run the engine where the pages it renders can't reach internal services. An
+  `<img src>` in the content is fetched from the server.
+
+Automated checks don't find every problem, and the panel says so when it finds
+nothing. The check covers the content's structure and semantics as the editor
+renders them. It doesn't cover the styling your page adds when it publishes the
+content.
+
+`npm start` runs the demo with a development-only endpoint (in `vite.config.js`)
+that runs the engine installed as a dev dependency, so you can try the whole
+flow locally. The demo turns on every rule (`standards: '*'`) so there is
+something to see: the editor already prevents most WCAG AA failures an author
+could type, such as an image without alt text.
 
 #### Upgrading
 

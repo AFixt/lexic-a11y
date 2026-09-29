@@ -11,7 +11,10 @@
   //   `npm run types:check` compiles it directly. No importer to follow.
   // - `examples/main.jsx` is loaded by `examples/index.html`, which is not the
   //   Vite root, so the Vite plugin does not reach it. See `npm run example`.
-  "entry": ["src/index.d.ts", "examples/main.jsx"],
+  // - `src/afixt-engine.js` / `.d.ts` are the second Rollup entry (the
+  //   server-side afixt-engine adapter, issue #155); the Rollup plugin only
+  //   follows the first config in the exported array.
+  "entry": ["src/index.d.ts", "examples/main.jsx", "src/afixt-engine.js", "src/afixt-engine.d.ts"],
 
   // `sandbox/` is a self-contained CodeSandbox demo with its own package.json
   // and its own dependencies (react-scripts). It is not built, tested or

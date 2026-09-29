@@ -52,7 +52,65 @@ export interface EditorProps {
    * @defaultValue false
    */
   showOutline?: boolean;
+
+  /**
+   * Optional accessibility checker. When provided, an "Accessibility check"
+   * panel appears below the editing surface: it sends the current content to
+   * this function as a complete HTML document, lists the issues it resolves to,
+   * marks the affected content, and moves the caret to each one on request.
+   *
+   * The checker usually forwards the document to a server running
+   * `@afixt/afixt-engine` through the adapter in
+   * `@afixt/lexic-a11y/dist/afixt-engine.js`. Omit it and no panel is rendered.
+   */
+  accessibilityChecker?: AccessibilityChecker;
 }
+
+/** What the editor sends to an {@link AccessibilityChecker}. */
+export interface AccessibilityCheckRequest {
+  /**
+   * A complete HTML document (`<!DOCTYPE html>` … `</html>`) whose `<main>`
+   * holds the editor's content. Content elements carry a
+   * `data-lexic-a11y-ref` attribute the editor uses to place issues back on
+   * them; checkers can ignore it.
+   */
+  html: string;
+}
+
+/** One finding, as returned by an {@link AccessibilityChecker}. */
+export interface AccessibilityIssue {
+  /** Stable identifier, unique within one check. */
+  id: string;
+  /** Identifier of the rule that produced the finding. */
+  ruleId?: string;
+  /** Short, human-readable summary. */
+  title: string;
+  /** Why this element failed. */
+  description?: string;
+  /** How to fix it. */
+  remediation?: string;
+  /** Severity label, e.g. `High`. */
+  severity?: string;
+  /** WCAG success criteria, e.g. `['1.1.1 Non-text Content']`. */
+  wcag?: string[];
+  /** True when a person must confirm the finding (assisted or manual rules). */
+  needsReview?: boolean;
+  /**
+   * Where the finding is, in the submitted document. The editor tries `xpath`
+   * first, then `selector`. Findings on the document wrapper itself (`html`,
+   * `head`, `body`, `main`) are dropped: the wrapper is the editor's, not the
+   * author's.
+   */
+  xpath?: string;
+  selector?: string;
+  /** A page explaining the rule. */
+  helpUrl?: string;
+}
+
+/** Checks a document and resolves to the issues found in it. */
+export type AccessibilityChecker = (
+  request: AccessibilityCheckRequest,
+) => Promise<AccessibilityIssue[]>;
 
 /**
  * The accessible rich text editor. Self-contained: it creates its own Lexical

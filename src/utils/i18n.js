@@ -76,6 +76,27 @@ i18n.use(initReactI18next).init({
         wordCount_other: '{{count}} words',
         charCount_one: '{{count}} character',
         charCount_other: '{{count}} characters',
+        // Accessibility check (shown only when an accessibilityChecker is set)
+        a11yCheckTitle: 'Accessibility check',
+        a11yCheckRun: 'Check accessibility',
+        a11yCheckIdle: 'Check the content for accessibility issues before you publish it.',
+        a11yCheckRunning: 'Checking accessibility…',
+        a11yCheckFound_one: '{{count}} accessibility issue found.',
+        a11yCheckFound_other: '{{count}} accessibility issues found.',
+        a11yCheckNone:
+          'No accessibility issues found. Automated checks cannot find every problem, so review the content as well.',
+        a11yCheckStale:
+          'The content has changed since the last check. Check again to update these results.',
+        a11yCheckFailed: 'The accessibility check could not be completed. Try again.',
+        a11yIssuesList: 'Accessibility issues',
+        a11yShowIssue: 'Show in content',
+        a11yIssueGone: 'That content is no longer in the document.',
+        a11yNotPlaced: 'This issue could not be matched to a specific part of the content.',
+        a11ySeverity: '{{severity}} severity',
+        a11yWcag: 'WCAG {{criteria}}',
+        a11yNeedsReview: 'Needs review',
+        a11yHowToFix: 'How to fix',
+        a11yLearnMore: 'Learn more (opens in a new tab)',
       },
     },
     // Additional languages can be added here.

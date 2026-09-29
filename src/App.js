@@ -17,6 +17,24 @@ function readFileAsDataUrl(file) {
   });
 }
 
+// Demo accessibility checker: posts the document to the Vite dev server's
+// @afixt/afixt-engine endpoint (see vite.config.js). A real app posts to its
+// own server, which runs the engine through `dist/afixt-engine.js`. Only the
+// dev server has the endpoint, so the static demo build omits the panel.
+async function checkWithDevEngine(request) {
+  const response = await fetch('/__a11y-check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    throw new Error(`Accessibility check failed: HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+const accessibilityChecker = import.meta.env.DEV ? checkWithDevEngine : undefined;
+
 // Demo helper: let `?seed=<html>` pre-fill the editor so the initialValue
 // behaviour can be exercised in the browser and E2E tests.
 function getSeedFromUrl() {
@@ -64,6 +82,7 @@ export default function App() {
           onImageUpload={readFileAsDataUrl}
           initialValue={initialValue}
           showOutline
+          accessibilityChecker={accessibilityChecker}
         />
         <h2>Output ({outputFormat === 'markdown' ? 'Markdown' : 'HTML'})</h2>
         <pre>{content}</pre>

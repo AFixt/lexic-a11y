@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { EDITOR_TRANSFORMERS } from '../utils/markdown-transformers';
 import { isSafeUrl } from '../utils/sanitize-url';
 
+import { AccessibilityCheckPlugin } from './AccessibilityCheckPlugin';
 import { HeadingOutlinePlugin } from './HeadingOutlinePlugin';
 import { ImageNode } from './ImageNode';
 import { InitialContentPlugin } from './InitialContentPlugin';
@@ -169,6 +170,10 @@ function OutputFormatSync({ outputFormat, onContentChange }) {
  *   minimal chrome by default and suits short-form embedded fields (a reply
  *   box, a ticket description). Pass `true` for long-form authoring, where a
  *   live heading map earns its space.
+ * @param {(request: { html: string }) => Promise<object[]>} [props.accessibilityChecker]
+ *   Optional checker (normally @afixt/afixt-engine on the host's server, via
+ *   `dist/afixt-engine.js`). When provided, an Accessibility check panel below
+ *   the editing surface sends it the content and shows the issues in context.
  */
 export default function Editor({
   onContentChange,
@@ -176,6 +181,7 @@ export default function Editor({
   onImageUpload,
   initialValue,
   showOutline = false,
+  accessibilityChecker,
 }) {
   const { t } = useTranslation();
   const [showDocs, setShowDocs] = useState(false);
@@ -213,6 +219,7 @@ export default function Editor({
           />
           <OutputFormatSync outputFormat={outputFormat} onContentChange={onContentChange} />
         </div>
+        {accessibilityChecker ? <AccessibilityCheckPlugin checker={accessibilityChecker} /> : null}
         {showOutline ? <HeadingOutlinePlugin /> : null}
         <WordCountPlugin />
       </div>
