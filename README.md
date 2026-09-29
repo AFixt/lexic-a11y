@@ -265,6 +265,31 @@ root.render(
 The CSS is included when you import the styles as shown above. This provides
 styling for the toolbar and editor components.
 
+#### 4. Light and dark themes
+
+The stylesheet ships a light and a dark colour set. By default the editor
+follows the operating system: the dark set applies under
+`prefers-color-scheme: dark`. To pin one regardless of the OS, set `data-theme`
+on any ancestor of the editor — usually `<html>`:
+
+```html
+<html data-theme="dark">
+  <!-- always dark -->
+</html>
+<html data-theme="light">
+  <!-- always light, even on a dark OS -->
+</html>
+```
+
+Every colour is a CSS custom property (`--background`, `--text-color`,
+`--primary-color`, `--surface`, `--control-border`, …) defined at the top of
+`src/styles/Editor.css`, so a host can also restyle either theme by redefining
+them. Both shipped sets meet WCAG 2.2 AA in every toolbar state (idle, hover,
+pressed, focus, disabled), the dialogs and the word count — text at least 4.5:1,
+icons, focus rings and state-carrying borders at least 3:1 — which
+`e2e/theme-contrast.spec.js` measures in a real browser. If you redefine the
+variables, re-check those pairings for your values.
+
 ### Customizing the Editor
 
 - **Theme**: Lexical class names for each node type are defined in the `theme`
