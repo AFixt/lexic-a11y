@@ -58,15 +58,36 @@ const packageNameFromLockKey = (key) => {
 /** Parse one of the two fixed manifest filenames under ROOT. Read-only. */
 const readJson = (file) => JSON.parse(readFileSync(join(ROOT, file), 'utf8'));
 
+/** A tarball URL for the empty package the override aliases axe-core to. */
+const EMPTY_TARBALL = /\/empty-npm-package\/-\//;
+
 /*
- * An entry is only a real axe-core if it actually resolves to an axe tarball.
- * The override leaves an entry keyed "axe-core" that resolves to
- * empty-npm-package; that is the intended state, not a violation.
+ * The override leaves an entry keyed "axe-core" that npm records with
+ * `"name": "empty-npm-package"` and an empty-npm-package tarball; that is the
+ * intended state, not a violation.
+ */
+const isEmptyAlias = (entry) =>
+  entry.name === 'empty-npm-package' || EMPTY_TARBALL.test(entry.resolved ?? '');
+
+/*
+ * An entry is axe if its install path, its real package name (which differs
+ * from the path under an npm alias such as `"x": "npm:axe-core@4"`), or its
+ * tarball says so.
+ */
+const isAxeEntry = (key, entry) =>
+  isAxePackageName(packageNameFromLockKey(key)) ||
+  isAxePackageName(entry.name ?? '') ||
+  AXE_TARBALL.test(entry.resolved ?? '');
+
+/*
+ * Fails closed: every axe entry is a violation unless it is the empty alias.
+ * Keying on a registry tarball URL instead would let a real axe-core through
+ * whenever it is resolved from git or a local file, bundled inside another
+ * package, or written without `resolved` (npm's omit-lockfile-registry-resolved).
  */
 const findLockOffenders = (lock) =>
   Object.entries(lock.packages ?? {})
-    .filter(([key]) => key !== '' && isAxePackageName(packageNameFromLockKey(key)))
-    .filter(([, entry]) => AXE_TARBALL.test(entry.resolved ?? ''))
+    .filter(([key, entry]) => key !== '' && isAxeEntry(key, entry) && !isEmptyAlias(entry))
     .map(([key, entry]) => ({ key, version: entry.version, resolved: entry.resolved }));
 
 /*
@@ -91,9 +112,9 @@ const report = (declared, offenders) => {
   }
 
   if (offenders.length > 0) {
-    console.error('Resolving to a real axe tarball in package-lock.json:');
+    console.error('Resolving to a real axe-core in package-lock.json:');
     for (const { key, version, resolved } of offenders) {
-      console.error(`  - ${key} @ ${version}\n      ${resolved}`);
+      console.error(`  - ${key} @ ${version}\n      ${resolved ?? '(no resolved field)'}`);
     }
     console.error(
       '\nRestore the override in package.json:\n' +

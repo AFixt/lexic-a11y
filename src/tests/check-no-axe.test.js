@@ -78,6 +78,15 @@ describe('check-no-axe', () => {
     expect(status).toBe(0);
   });
 
+  it('passes on the empty-npm-package alias when the lockfile omits resolved', () => {
+    const { status } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/axe-core': { name: 'empty-npm-package', version: '1.0.0' } },
+    );
+
+    expect(status).toBe(0);
+  });
+
   it('fails on a nested @axe-core/* lockfile entry resolving to a real tarball', () => {
     const { status, output } = runFixture(
       { overrides: OVERRIDES },
@@ -92,6 +101,41 @@ describe('check-no-axe', () => {
 
     expect(status).toBe(1);
     expect(output).toContain('node_modules/some-tool/node_modules/@axe-core/playwright @ 4.10.0');
+  });
+
+  /*
+   * The lockfile check fails closed: an axe entry passes only when it is the
+   * empty-npm-package alias the override produces. A real axe-core that does
+   * not come from a registry tarball URL is still a real axe-core.
+   */
+  it.each([
+    ['resolved from git', { resolved: 'git+ssh://git@github.com/dequelabs/axe-core.git#0123abc' }],
+    ['resolved from a local tarball', { resolved: 'file:vendor/axe-core-4.10.0.tgz' }],
+    ['with no resolved field (bundled, or omit-lockfile-registry-resolved)', { inBundle: true }],
+  ])('fails on a real axe-core lockfile entry %s', (_label, fields) => {
+    const { status, output } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/axe-core': { version: '4.10.0', ...fields } },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('node_modules/axe-core @ 4.10.0');
+  });
+
+  it.each([
+    [
+      'named by its lockfile name',
+      { name: 'axe-core', resolved: 'git+ssh://git@github.com/dequelabs/axe-core.git#0123abc' },
+    ],
+    ['named only by its tarball', { resolved: REAL }],
+  ])('fails on a real axe-core installed under an npm alias, %s', (_label, fields) => {
+    const { status, output } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/my-axe': { version: '4.10.0', ...fields } },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('node_modules/my-axe @ 4.10.0');
   });
 
   it('fails when package.json declares @axe-core/playwright as a devDependency, installed or not', () => {
