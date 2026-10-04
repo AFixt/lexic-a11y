@@ -1,0 +1,219 @@
+/**
+ * Tests for the axe-core ban guard (scripts/check-no-axe.mjs, #158).
+ *
+ * The guard is only worth having if it fails, so these pin both directions:
+ * the real tree passes, and each way axe-core could come back — a lockfile
+ * entry resolving to a real axe tarball, or a banned direct dependency —
+ * fails. The script runs as a child process, so the exit code observed here is
+ * the one `npm run check` and the pre-push hook act on.
+ */
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+const SCRIPT = path.join(__dirname, '..', '..', 'scripts', 'check-no-axe.mjs');
+const EMPTY = 'https://registry.npmjs.org/empty-npm-package/-/empty-npm-package-1.0.0.tgz';
+const REAL = 'https://registry.npmjs.org/axe-core/-/axe-core-4.10.0.tgz';
+const OVERRIDES = { 'axe-core': 'npm:empty-npm-package@1.0.0' };
+
+/**
+ * Run the guard against a project directory.
+ *
+ * @param {string} [dir] Project root to check; this repository when omitted.
+ * @returns {{status: number | null, output: string}} Exit code and combined output.
+ */
+function run(dir) {
+  const args = dir ? [SCRIPT, dir] : [SCRIPT];
+  const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
+  return { status: result.status, output: `${result.stdout}${result.stderr}` };
+}
+
+/**
+ * Write a fixture project and run the guard on it.
+ *
+ * @param {object} manifest The package.json contents.
+ * @param {object | null} lock The whole package-lock.json, or null to write none.
+ * @returns {{status: number | null, output: string}} Exit code and combined output.
+ */
+function runProject(manifest, lock) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'check-no-axe-'));
+  try {
+    // The paths are inside a fresh mkdtemp directory this test just created.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(manifest));
+    if (lock !== null) {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      fs.writeFileSync(path.join(dir, 'package-lock.json'), JSON.stringify(lock));
+    }
+    return run(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Write a fixture project (package.json + package-lock.json) and run the guard on it.
+ *
+ * @param {object} manifest The package.json contents.
+ * @param {object} packages The package-lock.json `packages` map.
+ * @returns {{status: number | null, output: string}} Exit code and combined output.
+ */
+function runFixture(manifest, packages) {
+  return runProject(manifest, { packages });
+}
+
+describe('check-no-axe', () => {
+  it('passes on this repository as it stands', () => {
+    const { status, output } = run();
+
+    expect(output).toContain('OK: axe-core does not resolve anywhere in the dependency tree.');
+    expect(status).toBe(0);
+  });
+
+  it('fails when a lockfile axe-core entry resolves to the real axe tarball', () => {
+    const { status, output } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/axe-core': { version: '4.10.0', resolved: REAL } },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('node_modules/axe-core @ 4.10.0');
+    expect(output).toContain('"axe-core": "npm:empty-npm-package@1.0.0"');
+  });
+
+  it('passes when the axe-core entry is aliased to empty-npm-package (the override working)', () => {
+    const { status } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/axe-core': { version: '1.0.0', resolved: EMPTY } },
+    );
+
+    expect(status).toBe(0);
+  });
+
+  it('passes on the empty-npm-package alias when the lockfile omits resolved', () => {
+    const { status } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/axe-core': { name: 'empty-npm-package', version: '1.0.0' } },
+    );
+
+    expect(status).toBe(0);
+  });
+
+  it('fails on a nested @axe-core/* lockfile entry resolving to a real tarball', () => {
+    const { status, output } = runFixture(
+      { overrides: OVERRIDES },
+      {
+        '': {},
+        'node_modules/some-tool/node_modules/@axe-core/playwright': {
+          version: '4.10.0',
+          resolved: 'https://registry.npmjs.org/@axe-core/playwright/-/playwright-4.10.0.tgz',
+        },
+      },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('node_modules/some-tool/node_modules/@axe-core/playwright @ 4.10.0');
+  });
+
+  /*
+   * The lockfile check fails closed: an axe entry passes only when it is the
+   * empty-npm-package alias the override produces. A real axe-core that does
+   * not come from a registry tarball URL is still a real axe-core.
+   */
+  it.each([
+    ['resolved from git', { resolved: 'git+ssh://git@github.com/dequelabs/axe-core.git#0123abc' }],
+    ['resolved from a local tarball', { resolved: 'file:vendor/axe-core-4.10.0.tgz' }],
+    ['with no resolved field (bundled, or omit-lockfile-registry-resolved)', { inBundle: true }],
+  ])('fails on a real axe-core lockfile entry %s', (_label, fields) => {
+    const { status, output } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/axe-core': { version: '4.10.0', ...fields } },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('node_modules/axe-core @ 4.10.0');
+  });
+
+  it.each([
+    [
+      'named by its lockfile name',
+      { name: 'axe-core', resolved: 'git+ssh://git@github.com/dequelabs/axe-core.git#0123abc' },
+    ],
+    ['named only by its tarball', { resolved: REAL }],
+  ])('fails on a real axe-core installed under an npm alias, %s', (_label, fields) => {
+    const { status, output } = runFixture(
+      { overrides: OVERRIDES },
+      { '': {}, 'node_modules/my-axe': { version: '4.10.0', ...fields } },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('node_modules/my-axe @ 4.10.0');
+  });
+
+  it('fails when package.json declares @axe-core/playwright as a devDependency, installed or not', () => {
+    const { status, output } = runFixture(
+      { overrides: OVERRIDES, devDependencies: { '@axe-core/playwright': '^4.10.0' } },
+      { '': {} },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('  - @axe-core/playwright');
+  });
+
+  it.each(['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'])(
+    'fails on every named axe wrapper declared in %s',
+    (field) => {
+      const wrappers = [
+        'axe-core',
+        'jest-axe',
+        '@types/jest-axe',
+        'vitest-axe',
+        'cypress-axe',
+        'axe-playwright',
+        'axe-puppeteer',
+      ];
+      const { status, output } = runFixture(
+        { [field]: Object.fromEntries(wrappers.map((name) => [name, '*'])) },
+        { '': {} },
+      );
+
+      expect(status).toBe(1);
+      for (const name of wrappers) expect(output).toContain(`  - ${name}\n`);
+    },
+  );
+
+  it('fails on a dependency that is an npm alias of axe-core, under any name', () => {
+    const { status, output } = runFixture(
+      {
+        devDependencies: {
+          'my-axe': 'npm:axe-core@^4.10.0',
+          'pw-axe': 'npm:@axe-core/playwright@4',
+        },
+      },
+      { '': {} },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('  - my-axe (npm:axe-core@^4.10.0)\n');
+    expect(output).toContain('  - pw-axe (npm:@axe-core/playwright@4)\n');
+  });
+
+  /*
+   * Exit 2, not 0: a guard that cannot read its evidence must not report the
+   * tree clean.
+   */
+  it('exits 2 when there is no package-lock.json', () => {
+    const { status, output } = runProject({}, null);
+
+    expect(status).toBe(2);
+    expect(output).toContain('Could not read package.json or package-lock.json');
+  });
+
+  it('exits 2 on a lockfile with no packages map (lockfileVersion 1 or malformed)', () => {
+    const { status, output } = runProject({}, { lockfileVersion: 1, dependencies: {} });
+
+    expect(status).toBe(2);
+    expect(output).toContain('has no "packages" map');
+  });
+});

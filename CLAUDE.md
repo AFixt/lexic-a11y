@@ -105,6 +105,20 @@ The ban is enforced, not just documented:
   `Banned Dependencies` CI job) fails and names the dependency chain that
   requested it — the override alone would only produce a confusing runtime
   breakage in whichever tool wanted axe-core.
+- `npm run check:no-axe` (`scripts/check-no-axe.mjs`, #158; part of
+  `npm run check`, so of the pre-push hook, and a step in CI's lint job) reads
+  `package-lock.json` and `package.json` only — no network, no `node_modules`.
+  It fails if any `axe-core` or `@axe-core/*` lockfile entry (matched by install
+  path, by real name under an npm alias, or by tarball) is anything other than
+  the `empty-npm-package` alias — a registry tarball, git or `file:` source, a
+  bundled copy, or an entry with no `resolved` all fail (dropping the override
+  produces the first) — or if `package.json` declares `axe-core`, `@axe-core/*`,
+  `jest-axe`, `@types/jest-axe`, `vitest-axe`, `cypress-axe`, `axe-playwright`
+  or `axe-puppeteer` in any dependency field, under its own name or as an `npm:`
+  alias. It exits 2, never 0, when it cannot read either file or the lockfile
+  has no `packages` map. An `axe-core` entry aliased to `empty-npm-package` is
+  the override working and passes; it still means something requests axe-core,
+  and `npm ls axe-core` shows what.
 
 To ban another package, add it to `BANNED` in `scripts/check-banned-deps.mjs`
 and add a matching `overrides` entry.
