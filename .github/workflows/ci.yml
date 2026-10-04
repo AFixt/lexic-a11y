@@ -29,6 +29,12 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # axe-core is banned (#158). Reads package.json and the lockfile only, so
+      # it fails on a dropped override or a new @axe-core/* / jest-axe-style
+      # dependency without needing the installed tree.
+      - name: Check axe-core is not in the dependency tree
+        run: npm run check:no-axe
+
       - name: Run ESLint
         run: npm run lint --if-present
 
