@@ -86,21 +86,36 @@ const isAxeEntry = (key, entry) =>
  * package, or written without `resolved` (npm's omit-lockfile-registry-resolved).
  */
 const findLockOffenders = (lock) =>
-  Object.entries(lock.packages ?? {})
+  Object.entries(lock.packages)
     .filter(([key, entry]) => key !== '' && isAxeEntry(key, entry) && !isEmptyAlias(entry))
     .map(([key, entry]) => ({ key, version: entry.version, resolved: entry.resolved }));
 
+const isBannedName = (name) => BANNED_DIRECT.includes(name) || isAxePackageName(name);
+
+/** The package an `npm:` alias spec points at, e.g. "npm:@axe-core/x@4" -> "@axe-core/x". */
+const aliasTarget = (spec) => {
+  if (typeof spec !== 'string' || !spec.startsWith('npm:')) return null;
+  const target = spec.slice('npm:'.length);
+  const at = target.indexOf('@', 1);
+  return at === -1 ? target : target.slice(0, at);
+};
+
 /*
  * A direct dependency is a violation even if an override currently neutralises
- * it, because the intent is wrong and the override may be removed.
+ * it, because the intent is wrong and the override may be removed. That holds
+ * under any name: `"my-axe": "npm:axe-core@4"` is axe-core.
  */
 const findDeclared = (manifest) =>
   [
-    ...Object.keys(manifest.dependencies ?? {}),
-    ...Object.keys(manifest.devDependencies ?? {}),
-    ...Object.keys(manifest.optionalDependencies ?? {}),
-    ...Object.keys(manifest.peerDependencies ?? {}),
-  ].filter((name) => BANNED_DIRECT.includes(name) || isAxePackageName(name));
+    ...Object.entries(manifest.dependencies ?? {}),
+    ...Object.entries(manifest.devDependencies ?? {}),
+    ...Object.entries(manifest.optionalDependencies ?? {}),
+    ...Object.entries(manifest.peerDependencies ?? {}),
+  ].flatMap(([name, spec]) => {
+    if (isBannedName(name)) return [name];
+    const target = aliasTarget(spec);
+    return target !== null && isBannedName(target) ? [`${name} (${spec})`] : [];
+  });
 
 const report = (declared, offenders) => {
   console.error('axe-core is banned in this repository (see "axe-core is banned" in CLAUDE.md).\n');
@@ -132,6 +147,18 @@ try {
   manifest = readJson('package.json');
 } catch (error) {
   console.error(`Could not read package.json or package-lock.json in ${ROOT}: ${error.message}`);
+  process.exit(2);
+}
+
+/*
+ * Only the lockfileVersion 2/3 `packages` map is read. Without it there is no
+ * evidence to check, and reporting the tree clean would be a false pass.
+ */
+if (typeof lock.packages !== 'object' || lock.packages === null) {
+  console.error(
+    `package-lock.json in ${ROOT} has no "packages" map (lockfileVersion ${lock.lockfileVersion ?? 'unknown'}); ` +
+      'regenerate it with npm 7 or later.',
+  );
   process.exit(2);
 }
 

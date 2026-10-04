@@ -114,9 +114,11 @@ The ban is enforced, not just documented:
   bundled copy, or an entry with no `resolved` all fail (dropping the override
   produces the first) — or if `package.json` declares `axe-core`, `@axe-core/*`,
   `jest-axe`, `@types/jest-axe`, `vitest-axe`, `cypress-axe`, `axe-playwright`
-  or `axe-puppeteer` in any dependency field. An `axe-core` entry aliased to
-  `empty-npm-package` is the override working and passes; it still means
-  something requests axe-core, and `npm ls axe-core` shows what.
+  or `axe-puppeteer` in any dependency field, under its own name or as an `npm:`
+  alias. It exits 2, never 0, when it cannot read either file or the lockfile
+  has no `packages` map. An `axe-core` entry aliased to `empty-npm-package` is
+  the override working and passes; it still means something requests axe-core,
+  and `npm ls axe-core` shows what.
 
 To ban another package, add it to `BANNED` in `scripts/check-banned-deps.mjs`
 and add a matching `overrides` entry.

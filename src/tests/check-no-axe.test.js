@@ -30,6 +30,29 @@ function run(dir) {
 }
 
 /**
+ * Write a fixture project and run the guard on it.
+ *
+ * @param {object} manifest The package.json contents.
+ * @param {object | null} lock The whole package-lock.json, or null to write none.
+ * @returns {{status: number | null, output: string}} Exit code and combined output.
+ */
+function runProject(manifest, lock) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'check-no-axe-'));
+  try {
+    // The paths are inside a fresh mkdtemp directory this test just created.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(manifest));
+    if (lock !== null) {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      fs.writeFileSync(path.join(dir, 'package-lock.json'), JSON.stringify(lock));
+    }
+    return run(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
  * Write a fixture project (package.json + package-lock.json) and run the guard on it.
  *
  * @param {object} manifest The package.json contents.
@@ -37,17 +60,7 @@ function run(dir) {
  * @returns {{status: number | null, output: string}} Exit code and combined output.
  */
 function runFixture(manifest, packages) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'check-no-axe-'));
-  try {
-    // The paths are inside a fresh mkdtemp directory this test just created.
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(manifest));
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.writeFileSync(path.join(dir, 'package-lock.json'), JSON.stringify({ packages }));
-    return run(dir);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+  return runProject(manifest, { packages });
 }
 
 describe('check-no-axe', () => {
@@ -169,4 +182,38 @@ describe('check-no-axe', () => {
       for (const name of wrappers) expect(output).toContain(`  - ${name}\n`);
     },
   );
+
+  it('fails on a dependency that is an npm alias of axe-core, under any name', () => {
+    const { status, output } = runFixture(
+      {
+        devDependencies: {
+          'my-axe': 'npm:axe-core@^4.10.0',
+          'pw-axe': 'npm:@axe-core/playwright@4',
+        },
+      },
+      { '': {} },
+    );
+
+    expect(status).toBe(1);
+    expect(output).toContain('  - my-axe (npm:axe-core@^4.10.0)\n');
+    expect(output).toContain('  - pw-axe (npm:@axe-core/playwright@4)\n');
+  });
+
+  /*
+   * Exit 2, not 0: a guard that cannot read its evidence must not report the
+   * tree clean.
+   */
+  it('exits 2 when there is no package-lock.json', () => {
+    const { status, output } = runProject({}, null);
+
+    expect(status).toBe(2);
+    expect(output).toContain('Could not read package.json or package-lock.json');
+  });
+
+  it('exits 2 on a lockfile with no packages map (lockfileVersion 1 or malformed)', () => {
+    const { status, output } = runProject({}, { lockfileVersion: 1, dependencies: {} });
+
+    expect(status).toBe(2);
+    expect(output).toContain('has no "packages" map');
+  });
 });
