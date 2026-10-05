@@ -1,4 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-  <!-- Document each suppression with a reason and a review date. -->
+    <!--
+        Reviewed findings for the OWASP Dependency-Check gate in
+        .github/workflows/security.yml (fails at CVSS >= 7).
+        Reference: AFixt/fleet-security templates/dependency-check.yml.
+
+        Suppress only a finding that has been reviewed and is not exploitable
+        here, or one with no fixed release that has been accepted. Every entry
+        needs a reason, the reviewer and an `until` date, so it can't quietly
+        outlive its justification. Once `until` passes, the finding fails the
+        gate again and has to be looked at again.
+        src/tests/accepted-advisories.test.js pins every entry: it fails if one
+        loses its reason, runs past 2026-12-02, or outlives the package version
+        it was written for.
+
+        <suppress until="2026-12-31Z">
+            <notes>Not reachable: [reason]. Reviewed by [name] [date].</notes>
+            <packageUrl regex="true">^pkg:npm/example@.*$</packageUrl>
+            <cve>CVE-2026-XXXXX</cve>
+        </suppress>
+
+        A real vulnerability is fixed (upgrade, override or replace the
+        dependency), not suppressed.
+    -->
+    <suppress until="2026-12-02Z">
+        <notes><![CDATA[
+        GHSA-vfj7-8cjw-p6xm (braces, CVSS 7.5 here): stack-exhaustion denial
+        of service through deeply nested brace patterns. Affects braces <= 3.0.3;
+        no fixed release exists (3.0.3 is the newest on the registry), so no
+        update or override can resolve it.
+
+        Not reachable here. braces 3.0.3 arrives only through micromatch 4.0.8
+        in dev tooling (jest, stylelint, markdownlint-cli2, jscpd);
+        `npm ls braces --omit=dev` is empty, so nothing in the published
+        package loads it. The only patterns it expands are repo-controlled: the
+        lint scripts' globs, the jest/stylelint/markdownlint configs, and the
+        staged paths lint-staged passes. None come from network or user input.
+
+        Accepted until 2026-12-02, the fleet window for this advisory (Karl's
+        standing decision of 2026-10-04; the same entry as
+        AFixt/single-page-tester#239 and AFixt/engine-research#279). This repo
+        has no tracking issue of its own for it. Pinned by
+        src/tests/accepted-advisories.test.js.
+        Reviewed by Karl Groves (standing acceptance, 2026-10-04); recorded
+        here 2026-10-05 for AFixt/fleet-security#4.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:npm/braces@3\.0\.3$</packageUrl>
+        <vulnerabilityName>GHSA-vfj7-8cjw-p6xm</vulnerabilityName>
+    </suppress>
+    <suppress until="2026-11-14Z">
+        <notes><![CDATA[
+        extract-zip <= 2.0.1, symlink path traversal / arbitrary file write
+        (CVSS 8.1): GHSA-jmr9-qjv8-65gv, which NVD lists as CVE-2026-56876,
+        and GHSA-7pqw-9j4j-h8q3. No fixed release exists: 2.0.1 is the newest
+        extract-zip and first_patched_version is null for both.
+
+        Dev-only: `npm ls extract-zip --omit=dev` is empty. The single consumer
+        is @afixt/a11y-assert 2.1.3 -> puppeteer 24.43.1 ->
+        @puppeteer/browsers 2.13.2, which depends on extract-zip ^2.0.1. The
+        only archive it opens is the Chrome build puppeteer downloads over
+        HTTPS from Google's CDN, so exploiting it means already controlling
+        that download. The path free of extract-zip (puppeteer 25, as
+        afixt-engine-v6 here already uses) needs an @afixt/a11y-assert major
+        upgrade, which is out of scope for this gate change.
+
+        Accepted until 2026-11-14, the date AFixt/single-page-tester set for
+        the same two advisories (#163, mirrored in its #241), so it is looked
+        at again then. This repo has no tracking issue of its own for it.
+        Pinned by src/tests/accepted-advisories.test.js.
+        Reviewed 2026-10-05 for AFixt/fleet-security#4. Not yet a standing
+        decision for this repo: merging this file is the acceptance here.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:npm/extract-zip@2\.0\.1$</packageUrl>
+        <vulnerabilityName>GHSA-jmr9-qjv8-65gv</vulnerabilityName>
+        <vulnerabilityName>GHSA-7pqw-9j4j-h8q3</vulnerabilityName>
+        <cve>CVE-2026-56876</cve>
+    </suppress>
 </suppressions>

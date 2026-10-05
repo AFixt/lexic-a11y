@@ -378,16 +378,18 @@ describe("this repository's own workflows", () => {
     }
   });
 
-  it('classifies only the declared branch pin as unknown when every tag resolves', () => {
+  // The one deliberate branch pin, Dependency-Check_Action, went when the
+  // OWASP job moved to the digest-pinned scanner image (AFixt/fleet-security#4).
+  // Every remaining reference carries a tag, so none may be unknown: a new
+  // branch pin has to be added here on purpose.
+  it('classifies no pin as unknown when every tag resolves', () => {
     const classified = pins.map((pin) => ({ pin, status: classifyPin(pin, pin.sha) }));
     const unknown = classified.filter(({ status }) => status.kind === 'unknown');
 
-    expect(unknown.map(({ pin }) => repoSlug(pin))).toEqual([
-      'dependency-check/Dependency-Check_Action',
-    ]);
+    expect(unknown.map(({ pin }) => repoSlug(pin))).toEqual([]);
     expect(summarize(classified.map(({ status }) => status))).toMatchObject({
       unresolved: 0,
-      unknown: 1,
+      unknown: 0,
       ok: true,
     });
   });

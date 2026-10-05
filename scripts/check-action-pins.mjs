@@ -20,8 +20,8 @@
  *     a clean run, which is the all-clear CI acts on (#140).
  *
  * References with nothing to compare against — no SHA, a SHA with no
- * `# <tag>` comment, or a deliberate `# <branch> @ <date>` branch pin like
- * Dependency-Check_Action's — are reported as unknown and do not fail the
+ * `# <tag>` comment, or a deliberate `# <branch> @ <date>` branch pin (as
+ * Dependency-Check_Action's once was) — are reported as unknown and do not fail the
  * run. Nothing was missed in those cases; there was never anything to check.
  *
  * Env vars:
