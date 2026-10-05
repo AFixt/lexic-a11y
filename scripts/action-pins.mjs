@@ -111,7 +111,8 @@ const USES_PATTERN = new RegExp(
 
 /**
  * `# <branch> @ <YYYY-MM-DD>` — the fleet convention for a deliberate branch
- * pin (see the Dependency-Check_Action reference in security.yml). The date
+ * pin (security.yml used one for Dependency-Check_Action until that job moved
+ * to a digest-pinned scanner image; none is in use now). The date
  * records which HEAD was frozen; the branch name is not a tag and must not be
  * looked up as one, or the run would fail for a pin that is exactly as
  * intended (#140).
