@@ -53,7 +53,7 @@ faked into passing.
 **Paste sanitization and paste-as-plain-text (`Ctrl/Cmd+Shift+V`).** The editor
 sanitizes markup pasted from Word and Google Docs, and `Ctrl/Cmd+Shift+V` forces
 a plain-text paste. Neither can be expressed here: the `@afixt/usecase-runner`
-DSL (v2.0.1) has no clipboard or paste verb, and faking one through raw
+DSL (v1.0.1) has no clipboard or paste verb, and faking one through raw
 `keyboard:` steps would not populate `clipboardData`, so the template would pass
 without ever exercising `PastePlugin`. A template that cannot fail is worse than
 none. This is a candidate for an upstream `paste:` keyword rather than a
@@ -62,11 +62,12 @@ meantime.
 
 ### Runner grammar limitations
 
-`@afixt/usecase-runner` 2.0.1 — the version this suite is pinned to and the
-newest published — cannot express a few assertions these use cases want. Rather
-than hack them into validating (a template that cannot fail is worse than none),
-the expressible half is asserted and the gap is recorded here as a candidate for
-an upstream runner feature:
+`@afixt/usecase-runner` 1.0.1 — the version this suite is pinned to, and the
+only version published when it was pinned (see
+[Runner version](#runner-version)) — cannot express a few assertions these use
+cases want. Rather than hack them into validating (a template that cannot fail
+is worse than none), the expressible half is asserted and the gap is recorded
+here as a candidate for an upstream runner feature:
 
 - **Nameless counts** — `count <role> is N`. The `count` verb requires a _named_
   target (`count role "columnheader" name "Name" is 1`), so "count of **all**
@@ -88,10 +89,11 @@ Literal text is entered with `type:`; `keyboard:` is reserved for key names
 step's literal text to one key press per token (#115); 2.0 rejects that form at
 validation, which is what forced the `type:` migration in #125.
 
-Runner 2.0.1 also validates a nameless `count image is 0`. The named-target
-limitations above were recorded against 1.5.1 and have not been re-verified
-against 2.0.1 — revisiting them (and the role tokens `columnheader` and
-`listitem`) is follow-up work, not part of the 2.0 bump.
+Runner 2.0.1, and the 1.0.1 now pinned, also validate a nameless
+`count image is 0`. The named-target limitations above were recorded against
+1.5.1 and have not been re-verified against 2.0.1 — revisiting them (and the
+role tokens `columnheader` and `listitem`) is follow-up work, not part of the
+2.0 bump.
 
 ## Accessible names these depend on
 
@@ -138,7 +140,20 @@ npm run validate:usecases
 npx usecase-runner generate usecases/*.uc.yaml --outdir ./tests/generated --run
 ```
 
-All eighteen use cases in this directory pass validation (runner v2.0.1).
+All eighteen use cases in this directory pass validation (runner v1.0.1).
+
+### Runner version
+
+The suite is pinned exactly to `@afixt/usecase-runner` **1.0.1**. Every 2.x
+release it was previously pinned to (`^2.0.1`) was unpublished from npm, which
+made a clean `npm ci` fail; 1.0.1 was the only version on the registry when the
+pin moved (2026-10-04). Despite the lower number, the republished 1.0.1 carries
+the grammar this suite relies on: it rejects a `keyboard:` step whose tokens are
+literal text rather than key names (the #115 / #125 behaviour), rejects unknown
+step keywords and schema errors, and accepts `type:` and the nameless `count`.
+The pin is exact so a future republish cannot move it silently; raise it
+deliberately when a newer runner is published and re-run
+`npm run validate:usecases`.
 
 ## Validation gate
 
