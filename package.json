@@ -89,7 +89,16 @@
     "axe-core": "npm:empty-npm-package@1.0.0",
     "@afixt/a11y-assert": {
       "@afixt/afixt-tests": "1.28.4"
-    }
+    },
+    "markdownlint-cli2": {
+      "js-yaml": "4.3.2",
+      "markdown-it": "14.3.2"
+    },
+    "rollup-plugin-terser": {
+      "serialize-javascript": "7.1.2"
+    },
+    "minimatch@10.1.2": "10.2.6",
+    "basic-ftp": "6.2.1"
   },
   "dependencies": {
     "@lexical/code": "0.12.6",
