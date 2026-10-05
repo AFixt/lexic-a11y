@@ -85,9 +85,11 @@ here as a candidate for an upstream runner feature:
 
 These use cases are machine-**validated** in CI (`npm run validate:usecases`).
 Literal text is entered with `type:`; `keyboard:` is reserved for key names
-(`Tab`, `Enter`, `ControlOrMeta+b`). Runner 1.x silently compiled a `keyboard:`
-step's literal text to one key press per token (#115); 2.0 rejects that form at
-validation, which is what forced the `type:` migration in #125.
+(`Tab`, `Enter`, `ControlOrMeta+b`). Runner 1.x up to 1.5.1 silently compiled a
+`keyboard:` step's literal text to one key press per token (#115); 2.0 rejects
+that form at validation, which is what forced the `type:` migration in #125. The
+republished 1.0.1 now pinned rejects it too (see
+[Runner version](#runner-version)).
 
 Runner 2.0.1, and the 1.0.1 now pinned, also validate a nameless
 `count image is 0`. The named-target limitations above were recorded against
@@ -122,11 +124,12 @@ accessible name has regressed.
 
 ## Running them
 
-The runner is not a dependency of this package; install it where you want to
-execute the use cases (Node >= 22):
+The runner is a `devDependency` of this repository, not a runtime dependency of
+the published package. To execute the use cases somewhere else, install the same
+pinned version (Node >= 22):
 
 ```bash
-npm install --no-save @afixt/usecase-runner @playwright/test
+npm install --no-save @afixt/usecase-runner@1.0.1 @playwright/test
 npx playwright install chromium
 
 # Start the demo app in another shell — it must be reachable at
