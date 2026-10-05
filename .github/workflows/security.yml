@@ -182,7 +182,8 @@ jobs:
       # into that image; the step prints its age and warns past DC_MAX_AGE_DAYS.
       # To bump: take the current digest
       # (`docker buildx imagetools inspect owasp/dependency-check-action:latest`),
-      # then verify locally that the repo still exits 0.
+      # then verify locally that the repo still exits 0, and that it exits 15
+      # with an empty suppression file (braces and extract-zip must fire).
       #
       # The gate: exit 15 on any finding with CVSS >= 7. Reviewed findings go in
       # .dependency-check-suppressions.xml, each with a reason, the reviewer
@@ -205,6 +206,9 @@ jobs:
       #     --suppression /src/.dependency-check-suppressions.xml \
       #     --failOnCVSS 7 --enableRetired --enableExperimental \
       #     --disableYarnAudit --disablePnpmAudit
+      # In a working checkout, also --exclude '**/coverage/**' and
+      # '**/dist/**' (and any other build or test output), so the local scan
+      # reads the same files as CI's fresh checkout, which never has them.
       - name: OWASP Dependency-Check
         env:
           DC_IMAGE: owasp/dependency-check-action@sha256:1782f0b306f3e73e98e7c1f00f3fd8ae4a6214deaceebffa38ecb821874bbfcd # built 2026-09-25, dependency-check 13.0.0
