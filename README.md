@@ -3,15 +3,15 @@
 An accessible and internationalized rich text editor built with React and
 Lexical. This package provides a modular editor focused on accessibility that
 supports core formatting options. It is designed to be easily integrated into
-any React application and to serve as a reusable component for projects
-requiring high accessibility (WCAG compliant) text editing capabilities.
+any React application and to serve as a reusable component for projects that
+need keyboard-accessible text editing with ARIA roles and semantic output.
 
 ## Overview
 
 lexic-a11y is a self-contained, React-based editor that emphasizes
 accessibility, extensibility, and internationalization. It leverages the modern
 Lexical framework by Meta to provide a headless editing experience that can be
-easily extended and customized. Designed with WCAG-compliant practices in mind,
+easily extended and customized. Designed with the WCAG success criteria in mind,
 it provides keyboard shortcuts and accessibility features that make rich text
 editing more accessible to all users.
 
@@ -45,8 +45,9 @@ editing more accessible to all users.
   localization of toolbar labels and prompts, making it adaptable for
   multi-language projects.
 - Accessibility: Designed with accessibility in mind, including ARIA roles,
-  keyboard navigability, and semantic output to ensure compliance with WCAG
-  standards.
+  keyboard navigability, and semantic output, to support WCAG conformance in the
+  pages that use it. Conformance is a property of the whole page, not of a
+  component on its own, and this package makes no conformance claim.
 
 ## Features
 
@@ -69,7 +70,7 @@ editing more accessible to all users.
 - Internationalization (i18n):
   - Built-in support using react-i18next.
   - Easy to add new languages and localize toolbar and prompt texts.
-- Accessibility (WCAG Compliant):
+- Accessibility:
   - ARIA roles and labels throughout the UI.
   - Fully keyboard accessible, including a roving-tabindex toolbar.
   - Optional in-context accessibility checking with @afixt/afixt-engine (see the
@@ -289,7 +290,7 @@ content.
 `npm start` runs the demo with a development-only endpoint (in `vite.config.js`)
 that runs the engine installed as a dev dependency, so you can try the whole
 flow locally. The demo turns on every rule (`standards: '*'`) so there is
-something to see: the editor already prevents most WCAG AA failures an author
+something to see: the editor already prevents some common failures an author
 could type, such as an image without alt text.
 
 #### Upgrading
@@ -373,11 +374,13 @@ on any ancestor of the editor — usually `<html>`:
 Every colour is a CSS custom property (`--background`, `--text-color`,
 `--primary-color`, `--surface`, `--control-border`, …) defined at the top of
 `src/styles/Editor.css`, so a host can also restyle either theme by redefining
-them. Both shipped sets meet WCAG 2.2 AA in every toolbar state (idle, hover,
-pressed, focus, disabled), the dialogs and the word count — text at least 4.5:1,
-icons, focus rings and state-carrying borders at least 3:1 — which
-`e2e/theme-contrast.spec.js` measures in a real browser. If you redefine the
-variables, re-check those pairings for your values.
+them. Both shipped sets meet the WCAG 2.2 contrast thresholds in the idle,
+hover, pressed and focus toolbar states, the dialogs and the word count — SC
+1.4.3 text contrast (4.5:1, or 3:1 for large-scale text), and SC 1.4.11 at least
+3:1 for icons, focus rings and state-carrying borders — which
+`e2e/theme-contrast.spec.js` measures in a real browser. Disabled controls are
+exempt from both criteria; their icons and text are still checked to stay
+legible. If you redefine the variables, re-check those pairings for your values.
 
 ### Customizing the Editor
 
