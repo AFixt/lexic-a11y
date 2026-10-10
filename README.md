@@ -4,7 +4,7 @@ An accessible and internationalized rich text editor built with React and
 Lexical. This package provides a modular editor focused on accessibility that
 supports core formatting options. It is designed to be easily integrated into
 any React application and to serve as a reusable component for projects that
-need keyboard-accessible, screen-reader-friendly text editing.
+need keyboard-accessible text editing with ARIA roles and semantic output.
 
 ## Overview
 
@@ -290,7 +290,7 @@ content.
 `npm start` runs the demo with a development-only endpoint (in `vite.config.js`)
 that runs the engine installed as a dev dependency, so you can try the whole
 flow locally. The demo turns on every rule (`standards: '*'`) so there is
-something to see: the editor already prevents most WCAG AA failures an author
+something to see: the editor already prevents some common failures an author
 could type, such as an image without alt text.
 
 #### Upgrading
@@ -374,11 +374,11 @@ on any ancestor of the editor — usually `<html>`:
 Every colour is a CSS custom property (`--background`, `--text-color`,
 `--primary-color`, `--surface`, `--control-border`, …) defined at the top of
 `src/styles/Editor.css`, so a host can also restyle either theme by redefining
-them. Both shipped sets meet WCAG 2.2 AA in every toolbar state (idle, hover,
-pressed, focus, disabled), the dialogs and the word count — text at least 4.5:1,
-icons, focus rings and state-carrying borders at least 3:1 — which
-`e2e/theme-contrast.spec.js` measures in a real browser. If you redefine the
-variables, re-check those pairings for your values.
+them. Both shipped sets meet the WCAG 2.2 contrast thresholds in every toolbar
+state (idle, hover, pressed, focus, disabled), the dialogs and the word count —
+SC 1.4.3 text at least 4.5:1, SC 1.4.11 icons, focus rings and state-carrying
+borders at least 3:1 — which `e2e/theme-contrast.spec.js` measures in a real
+browser. If you redefine the variables, re-check those pairings for your values.
 
 ### Customizing the Editor
 
