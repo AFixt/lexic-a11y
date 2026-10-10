@@ -67,10 +67,7 @@ export default function App() {
     <I18nextProvider i18n={i18n}>
       <div className="container">
         <h1>Lexical Accessible Editor Demo</h1>
-        <p>
-          A fully featured, accessible, and internationalized rich text editor built with React and
-          Lexical.
-        </p>
+        <p>An accessible, internationalized rich text editor for React, built on Lexical.</p>
 
         <div className="editor-container">
           <LexicalComposer initialConfig={editorConfig}>

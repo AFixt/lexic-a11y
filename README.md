@@ -3,15 +3,15 @@
 An accessible and internationalized rich text editor built with React and
 Lexical. This package provides a modular editor focused on accessibility that
 supports core formatting options. It is designed to be easily integrated into
-any React application and to serve as a reusable component for projects
-requiring high accessibility (WCAG compliant) text editing capabilities.
+any React application and to serve as a reusable component for projects that
+need keyboard-accessible, screen-reader-friendly text editing.
 
 ## Overview
 
 lexic-a11y is a self-contained, React-based editor that emphasizes
 accessibility, extensibility, and internationalization. It leverages the modern
 Lexical framework by Meta to provide a headless editing experience that can be
-easily extended and customized. Designed with WCAG-compliant practices in mind,
+easily extended and customized. Designed with the WCAG success criteria in mind,
 it provides keyboard shortcuts and accessibility features that make rich text
 editing more accessible to all users.
 
@@ -45,8 +45,9 @@ editing more accessible to all users.
   localization of toolbar labels and prompts, making it adaptable for
   multi-language projects.
 - Accessibility: Designed with accessibility in mind, including ARIA roles,
-  keyboard navigability, and semantic output to ensure compliance with WCAG
-  standards.
+  keyboard navigability, and semantic output, to support WCAG conformance in the
+  pages that use it. Conformance is a property of the whole page, not of a
+  component on its own, and this package makes no conformance claim.
 
 ## Features
 
@@ -69,7 +70,7 @@ editing more accessible to all users.
 - Internationalization (i18n):
   - Built-in support using react-i18next.
   - Easy to add new languages and localize toolbar and prompt texts.
-- Accessibility (WCAG Compliant):
+- Accessibility:
   - ARIA roles and labels throughout the UI.
   - Fully keyboard accessible, including a roving-tabindex toolbar.
   - Optional in-context accessibility checking with @afixt/afixt-engine (see the
