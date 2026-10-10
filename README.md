@@ -374,11 +374,13 @@ on any ancestor of the editor — usually `<html>`:
 Every colour is a CSS custom property (`--background`, `--text-color`,
 `--primary-color`, `--surface`, `--control-border`, …) defined at the top of
 `src/styles/Editor.css`, so a host can also restyle either theme by redefining
-them. Both shipped sets meet the WCAG 2.2 contrast thresholds in every toolbar
-state (idle, hover, pressed, focus, disabled), the dialogs and the word count —
-SC 1.4.3 text at least 4.5:1, SC 1.4.11 icons, focus rings and state-carrying
-borders at least 3:1 — which `e2e/theme-contrast.spec.js` measures in a real
-browser. If you redefine the variables, re-check those pairings for your values.
+them. Both shipped sets meet the WCAG 2.2 contrast thresholds in the idle,
+hover, pressed and focus toolbar states, the dialogs and the word count — SC
+1.4.3 text contrast (4.5:1, or 3:1 for large-scale text), and SC 1.4.11 at least
+3:1 for icons, focus rings and state-carrying borders — which
+`e2e/theme-contrast.spec.js` measures in a real browser. Disabled controls are
+exempt from both criteria; their icons and text are still checked to stay
+legible. If you redefine the variables, re-check those pairings for your values.
 
 ### Customizing the Editor
 
