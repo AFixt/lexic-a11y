@@ -81,6 +81,13 @@
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
     "npm": ">=10.0.0"
   },
+  "allowScripts": {
+    "puppeteer@24.43.1 || 25.5.0": true,
+    "esbuild": false,
+    "fsevents": false,
+    "tesseract.js": false,
+    "unrs-resolver": false
+  },
   "peerDependencies": {
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
     "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
