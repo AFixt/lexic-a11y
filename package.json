@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "style": "dist/styles.css",
   "files": [
     "dist",
     "README.md",
@@ -177,12 +178,12 @@
   },
   "size-limit": [
     {
-      "name": "ESM bundle",
+      "name": "ESM bundle (imports dist/styles.css, so this includes it)",
       "path": "dist/index.esm.js",
-      "limit": "105 KB"
+      "limit": "108 KB"
     },
     {
-      "name": "CJS bundle",
+      "name": "CJS bundle (no stylesheet; Node cannot require CSS)",
       "path": "dist/index.js",
       "limit": "105 KB"
     }

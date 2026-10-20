@@ -70,6 +70,49 @@ describe.each(BUNDLES)('$name bundle ($file)', ({ file }) => {
   });
 });
 
+// The editor is unusable without its stylesheet, and the failure is silent:
+// every class still lands on the markup, so nothing throws and nothing logs —
+// `.editor-toolbar` just falls back to `display: block`, stacking each toolbar
+// group on its own line, and `.editor-content-area` loses the border and
+// min-height that make the editing box visible. `src/lib.js` imports the CSS,
+// but postcss extracts it to `dist/styles.css` and drops the import, so for two
+// major versions the published JS carried no styles and no consumer loaded them
+// unless it had read the README (meetabl MTBL-202).
+describe('stylesheet delivery', () => {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is built from __dirname, not input
+  const read = (file) => fs.readFileSync(path.join(DIST, file), 'utf8');
+
+  it('ships the stylesheet', () => {
+    expect(fs.existsSync(path.join(DIST, 'styles.css'))).toBe(true);
+  });
+
+  it('ships the rules whose absence is the reported breakage', () => {
+    const css = read('styles.css');
+
+    expect(css).toMatch(/\.editor-toolbar\s*\{[^}]*display\s*:\s*flex/);
+    expect(css).toMatch(/\.editor-content-area\s*\{[^}]*border\s*:/);
+  });
+
+  it('makes the ESM bundle import it, so a bundler loads it unprompted', () => {
+    // This is what a consumer's bundler reads. Without the import the
+    // stylesheet is just a file in the package that nothing references.
+    expect(read('index.esm.js')).toMatch(/^import\s*["']\.\/styles\.css["']/);
+  });
+
+  it('leaves the CJS bundle alone, because Node cannot require CSS', () => {
+    // `require('./styles.css')` throws outside a bundler, so the CJS artifact
+    // keeps the manual-import contract the README documents.
+    expect(read('index.js')).not.toMatch(/styles\.css/);
+  });
+
+  it('does not inline the CSS into the JS', () => {
+    // Inlining would inject a <style> element at import time, which a
+    // `style-src` CSP without 'unsafe-inline' blocks — the same silent
+    // breakage again, for anyone with a strict policy.
+    expect(read('index.esm.js')).not.toMatch(/--primary-color\s*:/);
+  });
+});
+
 // The server-side afixt-engine adapter is its own entry (issue #155): Node
 // hosts load it without the editor, so it must not drag React, Lexical or the
 // engine itself in with it.
