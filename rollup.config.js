@@ -46,6 +46,26 @@ const editorBundle = {
       format: 'esm',
       sourcemap: true,
       exports: 'named',
+      // `src/lib.js` imports `./styles/Editor.css`, but the postcss plugin
+      // below extracts it to `dist/styles.css` and drops the import, so the
+      // published JS carried no styles and nothing loaded them. Consumers got
+      // unstyled markup — `.editor-toolbar` fell back to `display: block`, so
+      // every toolbar group stacked on its own line, and `.editor-content-area`
+      // lost its border and min-height, so the editing box disappeared. The
+      // README listed the import as a setup step, which made this a silent
+      // footgun rather than an error anyone could see (meetabl MTBL-202).
+      //
+      // Re-stating the import here puts it back in the artifact a bundler
+      // actually reads, so Vite/webpack pull `dist/styles.css` in on their own.
+      // It is a banner, not a source import, because it must appear in this
+      // output only: the CJS bundle is what Node loads, and `require()` of a
+      // .css file throws there. CJS consumers keep importing the stylesheet
+      // themselves, as the README says.
+      //
+      // Emitting the file rather than inlining the CSS keeps this working
+      // under a `style-src` CSP with no 'unsafe-inline', and keeps
+      // `dist/styles.css` on disk for anyone already importing that path.
+      banner: "import './styles.css';",
     },
   ],
   plugins: [

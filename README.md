@@ -165,10 +165,22 @@ your projects.
 
 In your React application, import the main Editor component:
 
+The stylesheet comes with it. The ESM bundle imports `dist/styles.css` itself,
+so Vite, webpack, Rollup, Parcel and anything else that reads the `module` entry
+load it for you. There is no second import to remember — and forgetting one is
+no longer a way to end up with an editor whose toolbar groups stack vertically
+and whose editing box has no border.
+
+Import the stylesheet yourself only when loading the CommonJS build
+(`require('@afixt/lexic-a11y')`), since Node cannot `require()` a stylesheet.
+Both bundles expect a bundler either way: they import `react` and the Lexical
+packages by bare specifier, which a browser cannot resolve on its own.
+
 ```javascript
 import React, { useState } from 'react';
 import Editor from '@afixt/lexic-a11y';
-import '@afixt/lexic-a11y/dist/styles.css'; // Import the styles
+// CommonJS or no bundler? Add:
+// import '@afixt/lexic-a11y/dist/styles.css';
 
 // Resolve an uploaded File to a hosted URL (POST to your backend in a real app).
 async function uploadImage(file) {
