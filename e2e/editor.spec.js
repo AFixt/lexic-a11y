@@ -309,6 +309,87 @@ const indicatorColor = (styles) => {
 // rendered text colour and the first opaque background painted behind it.
 // The measuring helpers live in ./contrast.js, shared with theme-contrast.spec.js.
 
+test.describe('allowedFormats', () => {
+  // Text, lists and links only — the profile a short-form field restricts to.
+  const TEXT_LISTS_LINKS = 'bold,italic,underline,strikethrough,bulletList,numberedList,link';
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`/?formats=${TEXT_LISTS_LINKS}`);
+    await expect(page.locator(EDITOR)).toBeVisible();
+  });
+
+  test('renders only the allowed toolbar controls', async ({ page }) => {
+    const toolbar = page.getByRole('toolbar');
+    const labels = await toolbar
+      .locator('.toolbar-group > button')
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')));
+
+    expect(labels).toEqual([
+      'Undo',
+      'Redo',
+      'Bold',
+      'Italic',
+      'Underline',
+      'Strikethrough',
+      'Clear Formatting',
+      'Insert Link',
+      'Bullet List',
+      'Numbered List',
+      'Show Help',
+    ]);
+  });
+
+  test('Ctrl+Shift+M does not open the image dialog', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.press('ControlOrMeta+Shift+M');
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('typing "# " stays a paragraph when headings are not allowed', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('# Not a heading');
+
+    await expect(page.locator(`${EDITOR} h1`)).toHaveCount(0);
+    await expect(page.locator(`${EDITOR} p`)).toHaveText('# Not a heading');
+  });
+
+  test('allowed Markdown shortcuts still convert', async ({ page }) => {
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('- Listed');
+
+    await expect(page.locator(`${EDITOR} ul li`)).toHaveText('Listed');
+  });
+
+  test('native Ctrl+B does nothing when bold is not allowed', async ({ page }) => {
+    await page.goto('/?formats=italic,link');
+    await page.locator(EDITOR).click();
+    await page.keyboard.type('Not bold');
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('ControlOrMeta+b');
+
+    await expect(page.locator(`${EDITOR} strong`)).toHaveCount(0);
+
+    // An allowed native shortcut still applies.
+    await page.keyboard.press('ControlOrMeta+i');
+    await expect(page.locator(`${EDITOR} em`)).toHaveText('Not bold');
+  });
+
+  test('arrow keys walk the reduced toolbar from one tab stop', async ({ page }) => {
+    const toolbar = page.getByRole('toolbar');
+    await expect(toolbar.locator('.toolbar-group > button[tabindex="0"]')).toHaveCount(1);
+
+    await page.getByRole('button', { name: 'Undo' }).focus();
+    await page.keyboard.press('End');
+    await expect(page.getByRole('button', { name: 'Show Help' })).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('button', { name: 'Numbered List' })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeFocused();
+  });
+});
+
 test.describe('text colour contrast (WCAG 2.2 SC 1.4.3)', () => {
   test('every toolbar control has readable text', async ({ page }) => {
     await expectReadableText(page, '.editor-toolbar button');

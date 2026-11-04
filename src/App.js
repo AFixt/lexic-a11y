@@ -44,10 +44,22 @@ function getSeedFromUrl() {
   return new URLSearchParams(window.location.search).get('seed') || undefined;
 }
 
+// Demo helper: let `?formats=bold,italic,link` set allowedFormats so the
+// restricted toolbar can be exercised in the browser and E2E tests. An empty
+// value (`?formats=`) allows nothing; no parameter allows everything.
+function getAllowedFormatsFromUrl() {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  const formats = new URLSearchParams(window.location.search).get('formats');
+  return formats === null ? undefined : formats.split(',').filter(Boolean);
+}
+
 export default function App() {
   const [content, setContent] = useState('');
   const [outputFormat, setOutputFormat] = useState('html');
   const [initialValue] = useState(getSeedFromUrl);
+  const [allowedFormats] = useState(getAllowedFormatsFromUrl);
 
   return (
     <I18nextProvider i18n={i18n}>
@@ -83,6 +95,7 @@ export default function App() {
           initialValue={initialValue}
           showOutline
           accessibilityChecker={accessibilityChecker}
+          allowedFormats={allowedFormats}
         />
         <h2>Output ({outputFormat === 'markdown' ? 'Markdown' : 'HTML'})</h2>
         <pre>{content}</pre>

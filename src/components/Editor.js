@@ -19,9 +19,14 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+  HEADING_FORMATS,
+  markdownShortcutTransformers,
+  useAllowedFormats,
+} from '../utils/allowed-formats';
 import { EDITOR_TRANSFORMERS } from '../utils/markdown-transformers';
 import { isSafeUrl } from '../utils/sanitize-url';
 
@@ -174,6 +179,11 @@ function OutputFormatSync({ outputFormat, onContentChange }) {
  *   Optional checker (normally @afixt/afixt-engine on the host's server, via
  *   `dist/afixt-engine.js`). When provided, an Accessibility check panel below
  *   the editing surface sends it the content and shows the issues in context.
+ * @param {string[]} [props.allowedFormats] Formatting the editor offers. When
+ *   provided, only these toolbar controls render, and only their keyboard and
+ *   Markdown shortcuts work. Omit it for every format. Undo, redo, clear
+ *   formatting and help are always available. Content arriving through paste or
+ *   `initialValue` is not filtered.
  */
 export default function Editor({
   onContentChange,
@@ -182,14 +192,97 @@ export default function Editor({
   initialValue,
   showOutline = false,
   accessibilityChecker,
+  allowedFormats,
 }) {
   const { t } = useTranslation();
   const [showDocs, setShowDocs] = useState(false);
   const [, setHtmlOutput] = useState('');
+  const allowed = useAllowedFormats(allowedFormats);
+  const can = (format) => allowed.has(format);
+  const shortcutTransformers = useMemo(() => markdownShortcutTransformers(allowed), [allowed]);
+  const headingLevels = HEADING_FORMATS.filter(can).map((format) => format.slice(1));
+  // Markdown auto-formatting hints for the help overlay, in sentence order
+  const markdownHints = [
+    headingLevels.length > 0 && {
+      key: 'heading',
+      content: (
+        <>
+          {headingLevels.length === HEADING_FORMATS.length ? (
+            <>
+              <kbd>#</kbd>–<kbd>######</kbd>
+            </>
+          ) : (
+            headingLevels.map((level, index) => (
+              <Fragment key={level}>
+                {index > 0 ? ' or ' : null}
+                <kbd>{'#'.repeat(Number(level))}</kbd>
+              </Fragment>
+            ))
+          )}{' '}
+          for headings
+        </>
+      ),
+    },
+    can('blockquote') && {
+      key: 'blockquote',
+      content: (
+        <>
+          <kbd>&gt;</kbd> for a blockquote
+        </>
+      ),
+    },
+    can('bulletList') && {
+      key: 'bulletList',
+      content: (
+        <>
+          <kbd>-</kbd> or <kbd>*</kbd> for a bullet list
+        </>
+      ),
+    },
+    can('numberedList') && {
+      key: 'numberedList',
+      content: (
+        <>
+          <kbd>1.</kbd> for a numbered list
+        </>
+      ),
+    },
+    can('bold') && { key: 'bold', content: <kbd>**bold**</kbd> },
+    can('italic') && { key: 'italic', content: <kbd>*italic*</kbd> },
+    can('code') && {
+      key: 'code',
+      content: (
+        <>
+          <kbd>`code`</kbd> for inline code
+        </>
+      ),
+    },
+    can('codeBlock') && {
+      key: 'codeBlock',
+      content: (
+        <>
+          <kbd>```</kbd> for a code block
+        </>
+      ),
+    },
+    can('link') && {
+      key: 'link',
+      content: (
+        <>
+          <kbd>[text](url)</kbd> for links
+        </>
+      ),
+    },
+  ].filter(Boolean);
 
   return (
     <LexicalComposer initialConfig={editorConfig}>
-      <ToolbarPlugin showDocs={showDocs} setShowDocs={setShowDocs} onImageUpload={onImageUpload} />
+      <ToolbarPlugin
+        showDocs={showDocs}
+        setShowDocs={setShowDocs}
+        onImageUpload={onImageUpload}
+        allowedFormats={allowedFormats}
+      />
 
       <div className="editor-container">
         <div className="editor-content-area">
@@ -204,7 +297,7 @@ export default function Editor({
           <HorizontalRulePlugin />
           <LinkPlugin validateUrl={isSafeUrl} />
           <ListPlugin />
-          <MarkdownShortcutPlugin transformers={EDITOR_TRANSFORMERS} />
+          <MarkdownShortcutPlugin transformers={shortcutTransformers} />
           <PastePlugin />
           <TablePlugin />
           {initialValue ? <InitialContentPlugin html={initialValue} /> : null}
@@ -245,36 +338,46 @@ export default function Editor({
                 <section className="shortcuts-section">
                   <h3>Text formatting</h3>
                   <dl className="shortcuts-list">
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>B</kbd>
-                      </dt>
-                      <dd>Bold</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>I</kbd>
-                      </dt>
-                      <dd>Italic</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>U</kbd>
-                      </dt>
-                      <dd>Underline</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>X</kbd>
-                      </dt>
-                      <dd>Strikethrough</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>E</kbd>
-                      </dt>
-                      <dd>Inline code</dd>
-                    </div>
+                    {can('bold') ? (
+                      <div className="shortcut-row">
+                        <dt>
+                          <kbd>Ctrl</kbd> + <kbd>B</kbd>
+                        </dt>
+                        <dd>Bold</dd>
+                      </div>
+                    ) : null}
+                    {can('italic') ? (
+                      <div className="shortcut-row">
+                        <dt>
+                          <kbd>Ctrl</kbd> + <kbd>I</kbd>
+                        </dt>
+                        <dd>Italic</dd>
+                      </div>
+                    ) : null}
+                    {can('underline') ? (
+                      <div className="shortcut-row">
+                        <dt>
+                          <kbd>Ctrl</kbd> + <kbd>U</kbd>
+                        </dt>
+                        <dd>Underline</dd>
+                      </div>
+                    ) : null}
+                    {can('strikethrough') ? (
+                      <div className="shortcut-row">
+                        <dt>
+                          <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>X</kbd>
+                        </dt>
+                        <dd>Strikethrough</dd>
+                      </div>
+                    ) : null}
+                    {can('code') ? (
+                      <div className="shortcut-row">
+                        <dt>
+                          <kbd>Ctrl</kbd> + <kbd>E</kbd>
+                        </dt>
+                        <dd>Inline code</dd>
+                      </div>
+                    ) : null}
                     <div className="shortcut-row">
                       <dt>
                         <kbd>Ctrl</kbd> + <kbd>\</kbd>
@@ -284,77 +387,113 @@ export default function Editor({
                   </dl>
                 </section>
 
-                <section className="shortcuts-section">
-                  <h3>Headings</h3>
-                  <dl className="shortcuts-list">
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>1</kbd>–<kbd>6</kbd>
-                      </dt>
-                      <dd>Heading 1 through 6</dd>
-                    </div>
-                  </dl>
-                </section>
+                {headingLevels.length > 0 ? (
+                  <section className="shortcuts-section">
+                    <h3>Headings</h3>
+                    <dl className="shortcuts-list">
+                      {headingLevels.length === HEADING_FORMATS.length ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>1</kbd>–<kbd>6</kbd>
+                          </dt>
+                          <dd>Heading 1 through 6</dd>
+                        </div>
+                      ) : (
+                        headingLevels.map((level) => (
+                          <div className="shortcut-row" key={level}>
+                            <dt>
+                              <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>{level}</kbd>
+                            </dt>
+                            <dd>Heading {level}</dd>
+                          </div>
+                        ))
+                      )}
+                    </dl>
+                  </section>
+                ) : null}
 
-                <section className="shortcuts-section">
-                  <h3>Blocks &amp; lists</h3>
-                  <dl className="shortcuts-list">
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>8</kbd>
-                      </dt>
-                      <dd>Bullet list</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>7</kbd>
-                      </dt>
-                      <dd>Numbered list</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd>
-                      </dt>
-                      <dd>Blockquote</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd>
-                      </dt>
-                      <dd>Code block</dd>
-                    </div>
-                  </dl>
-                </section>
+                {can('bulletList') ||
+                can('numberedList') ||
+                can('blockquote') ||
+                can('codeBlock') ? (
+                  <section className="shortcuts-section">
+                    <h3>Blocks &amp; lists</h3>
+                    <dl className="shortcuts-list">
+                      {can('bulletList') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>8</kbd>
+                          </dt>
+                          <dd>Bullet list</dd>
+                        </div>
+                      ) : null}
+                      {can('numberedList') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>7</kbd>
+                          </dt>
+                          <dd>Numbered list</dd>
+                        </div>
+                      ) : null}
+                      {can('blockquote') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd>
+                          </dt>
+                          <dd>Blockquote</dd>
+                        </div>
+                      ) : null}
+                      {can('codeBlock') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd>
+                          </dt>
+                          <dd>Code block</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  </section>
+                ) : null}
 
-                <section className="shortcuts-section">
-                  <h3>Insert</h3>
-                  <dl className="shortcuts-list">
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>K</kbd>
-                      </dt>
-                      <dd>Insert or edit link</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>
-                      </dt>
-                      <dd>Insert image</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>
-                      </dt>
-                      <dd>Insert table</dd>
-                    </div>
-                    <div className="shortcut-row">
-                      <dt>
-                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>-</kbd>
-                      </dt>
-                      <dd>Horizontal rule</dd>
-                    </div>
-                  </dl>
-                </section>
+                {can('link') || can('image') || can('table') || can('horizontalRule') ? (
+                  <section className="shortcuts-section">
+                    <h3>Insert</h3>
+                    <dl className="shortcuts-list">
+                      {can('link') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>K</kbd>
+                          </dt>
+                          <dd>Insert or edit link</dd>
+                        </div>
+                      ) : null}
+                      {can('image') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>
+                          </dt>
+                          <dd>Insert image</dd>
+                        </div>
+                      ) : null}
+                      {can('table') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>
+                          </dt>
+                          <dd>Insert table</dd>
+                        </div>
+                      ) : null}
+                      {can('horizontalRule') ? (
+                        <div className="shortcut-row">
+                          <dt>
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>-</kbd>
+                          </dt>
+                          <dd>Horizontal rule</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  </section>
+                ) : null}
 
                 <section className="shortcuts-section">
                   <h3>Editing</h3>
@@ -412,14 +551,21 @@ export default function Editor({
                 </section>
               </div>
 
-              <h3>Markdown auto-formatting</h3>
-              <p>
-                Type these and they convert as you go: <kbd>#</kbd>–<kbd>######</kbd> for headings,{' '}
-                <kbd>&gt;</kbd> for a blockquote, <kbd>-</kbd> or <kbd>*</kbd> for a bullet list,{' '}
-                <kbd>1.</kbd> for a numbered list, <kbd>**bold**</kbd>, <kbd>*italic*</kbd>,{' '}
-                <kbd>`code`</kbd> for inline code, <kbd>```</kbd> for a code block, and{' '}
-                <kbd>[text](url)</kbd> for links.
-              </p>
+              {markdownHints.length > 0 ? (
+                <>
+                  <h3>Markdown auto-formatting</h3>
+                  <p>
+                    Type these and they convert as you go:{' '}
+                    {markdownHints.map((hint, index) => (
+                      <Fragment key={hint.key}>
+                        {index > 0 && index === markdownHints.length - 1 ? 'and ' : null}
+                        {hint.content}
+                        {index === markdownHints.length - 1 ? '.' : ', '}
+                      </Fragment>
+                    ))}
+                  </p>
+                </>
+              ) : null}
             </div>
           </div>
         </div>

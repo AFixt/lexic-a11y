@@ -2,7 +2,7 @@ import { $createCodeNode, $isCodeNode } from '@lexical/code';
 import { $isLinkNode } from '@lexical/link';
 import { $createQuoteNode, $isQuoteNode } from '@lexical/rich-text';
 import { $setBlocksType } from '@lexical/selection';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { $createParagraphNode } from 'lexical';
 import { I18nextProvider } from 'react-i18next';
@@ -72,6 +72,7 @@ jest.mock('lexical', () => {
     $isTextNode: jest.fn(() => true),
     $createParagraphNode: jest.fn(() => ({})),
     KEY_ESCAPE_COMMAND: 'escape',
+    COMMAND_PRIORITY_CRITICAL: 4,
     COMMAND_PRIORITY_HIGH: 1,
     COMMAND_PRIORITY_LOW: 0,
     FORMAT_TEXT_COMMAND: 'format-text',
@@ -1114,5 +1115,239 @@ describe('ToolbarPlugin Component', () => {
 
     $isLinkNode.mockReturnValue(false);
     jest.useRealTimers();
+  });
+});
+
+describe('ToolbarPlugin allowedFormats', () => {
+  // The text, lists and links profile a short-form field (e.g. a booking
+  // description) restricts the editor to.
+  const TEXT_LISTS_LINKS = [
+    'bold',
+    'italic',
+    'underline',
+    'strikethrough',
+    'bulletList',
+    'numberedList',
+    'link',
+  ];
+  const TEXT_LISTS_LINKS_LABELS = [
+    'Undo',
+    'Redo',
+    'Bold',
+    'Italic',
+    'Underline',
+    'Strikethrough',
+    'Clear Formatting',
+    'Insert Link',
+    'Bullet List',
+    'Numbered List',
+    'Show Help',
+  ];
+
+  const toolbarButtons = () =>
+    Array.from(screen.getByRole('toolbar').querySelectorAll('.toolbar-group > button'));
+  const toolbarLabels = () => toolbarButtons().map((button) => button.getAttribute('aria-label'));
+
+  const renderToolbar = (allowedFormats) =>
+    renderWithI18n(
+      <ToolbarPlugin showDocs={false} setShowDocs={jest.fn()} allowedFormats={allowedFormats} />,
+    );
+
+  // The handler the toolbar registers to veto disallowed inline formats
+  const formatTextVeto = () => {
+    const call = mockEditor.registerCommand.mock.calls.find(
+      ([command, , priority]) => command === 'format-text' && priority === 4,
+    );
+    return call ? call[1] : null;
+  };
+
+  beforeEach(() => {
+    mockEditor.dispatchCommand.mockClear();
+    mockEditor.update.mockClear();
+    mockEditor.registerCommand.mockClear();
+  });
+
+  it('renders every control when the prop is omitted', () => {
+    renderToolbar(undefined);
+
+    expect(toolbarLabels()).toEqual([
+      'Undo',
+      'Redo',
+      'Bold',
+      'Italic',
+      'Underline',
+      'Strikethrough',
+      'Inline Code',
+      'Code Block',
+      'Clear Formatting',
+      'H1',
+      'H2',
+      'H3',
+      'H4',
+      'H5',
+      'H6',
+      'Blockquote',
+      'Insert Link',
+      'Insert Image',
+      'Insert Table',
+      'Bullet List',
+      'Numbered List',
+      'Insert Horizontal Rule',
+      'Show Help',
+    ]);
+  });
+
+  it('vetoes no inline format when the prop is omitted', () => {
+    renderToolbar(undefined);
+
+    const veto = formatTextVeto();
+    ['bold', 'italic', 'underline', 'strikethrough', 'code'].forEach((format) => {
+      expect(veto(format)).toBe(false);
+    });
+  });
+
+  it('renders only text, list and link controls for that allowlist', () => {
+    renderToolbar(TEXT_LISTS_LINKS);
+
+    expect(toolbarLabels()).toEqual(TEXT_LISTS_LINKS_LABELS);
+    expect(screen.queryByLabelText('Insert Image')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Insert Table')).not.toBeInTheDocument();
+    for (let level = 1; level <= 6; level++) {
+      expect(screen.queryByLabelText(`H${level}`)).not.toBeInTheDocument();
+    }
+  });
+
+  it('leaves no empty toolbar groups behind', () => {
+    renderToolbar(TEXT_LISTS_LINKS);
+
+    const groups = screen.getByRole('toolbar').querySelectorAll('.toolbar-group');
+    groups.forEach((group) => {
+      expect(group.querySelectorAll('button').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('ignores Ctrl+Shift+M and Ctrl+Shift+L when images and tables are not allowed', () => {
+    renderToolbar(TEXT_LISTS_LINKS);
+
+    fireEvent.keyDown(document, { key: 'M', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'L', ctrlKey: true, shiftKey: true });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('ignores block, heading, code and rule shortcuts that are not allowed', () => {
+    renderToolbar(TEXT_LISTS_LINKS);
+
+    fireEvent.keyDown(document, { key: '1', ctrlKey: true, altKey: true });
+    fireEvent.keyDown(document, { key: 'Q', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'E', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'e', ctrlKey: true });
+    fireEvent.keyDown(document, { key: '_', ctrlKey: true, shiftKey: true });
+
+    expect(mockEditor.update).not.toHaveBeenCalled();
+    expect(mockEditor.dispatchCommand).not.toHaveBeenCalled();
+  });
+
+  it('does not preventDefault a shortcut it ignores', () => {
+    renderToolbar(TEXT_LISTS_LINKS);
+
+    const event = createEvent.keyDown(document, { key: 'M', ctrlKey: true, shiftKey: true });
+    fireEvent(document, event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('keeps the shortcuts of allowed formats working', () => {
+    renderToolbar(TEXT_LISTS_LINKS);
+
+    fireEvent.keyDown(document, { key: '8', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'X', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
+
+    expect(mockEditor.dispatchCommand).toHaveBeenCalledWith('insert-unordered-list', undefined);
+    expect(mockEditor.dispatchCommand).toHaveBeenCalledWith('format-text', 'strikethrough');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('vetoes disallowed inline formats at FORMAT_TEXT_COMMAND (native Ctrl+B/I/U)', () => {
+    renderToolbar(['italic', 'link']);
+
+    const veto = formatTextVeto();
+    expect(veto('bold')).toBe(true);
+    expect(veto('underline')).toBe(true);
+    expect(veto('code')).toBe(true);
+    expect(veto('italic')).toBe(false);
+  });
+
+  it('offers only the allowed heading levels and their shortcuts', () => {
+    renderToolbar(['h2', 'h3']);
+
+    expect(screen.queryByLabelText('H1')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('H2')).toBeInTheDocument();
+    expect(screen.getByLabelText('H3')).toBeInTheDocument();
+    expect(screen.queryByLabelText('H4')).not.toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: '1', ctrlKey: true, altKey: true });
+    expect(mockEditor.update).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document, { key: '2', ctrlKey: true, altKey: true });
+    expect(mockEditor.update).toHaveBeenCalled();
+  });
+
+  it('keeps only undo, redo, clear formatting and help for an empty allowlist', () => {
+    renderToolbar([]);
+
+    expect(toolbarLabels()).toEqual(['Undo', 'Redo', 'Clear Formatting', 'Show Help']);
+  });
+
+  it('ignores format names it does not know', () => {
+    renderToolbar(['bold', 'sparkles']);
+
+    expect(toolbarLabels()).toEqual(['Undo', 'Redo', 'Bold', 'Clear Formatting', 'Show Help']);
+  });
+
+  describe('roving tabindex across the reduced toolbar', () => {
+    it('exposes exactly one tab stop', () => {
+      renderToolbar(TEXT_LISTS_LINKS);
+
+      const tabStops = toolbarButtons().filter((button) => button.tabIndex === 0);
+      expect(tabStops).toHaveLength(1);
+      expect(toolbarButtons().filter((button) => button.tabIndex === -1)).toHaveLength(10);
+    });
+
+    it('visits every remaining control with ArrowRight, in order, then wraps', () => {
+      renderToolbar(TEXT_LISTS_LINKS);
+      const buttons = toolbarButtons();
+      const toolbar = screen.getByRole('toolbar');
+
+      buttons[0].focus();
+      const visited = [document.activeElement.getAttribute('aria-label')];
+      for (let step = 1; step < buttons.length; step++) {
+        fireEvent.keyDown(toolbar, { key: 'ArrowRight' });
+        visited.push(document.activeElement.getAttribute('aria-label'));
+      }
+      expect(visited).toEqual(TEXT_LISTS_LINKS_LABELS);
+
+      fireEvent.keyDown(toolbar, { key: 'ArrowRight' });
+      expect(buttons[0]).toHaveFocus();
+    });
+
+    it('moves the tab stop with focus and jumps to the ends with Home and End', () => {
+      renderToolbar(TEXT_LISTS_LINKS);
+      const buttons = toolbarButtons();
+      const toolbar = screen.getByRole('toolbar');
+
+      buttons[0].focus();
+      fireEvent.keyDown(toolbar, { key: 'End' });
+      expect(screen.getByLabelText('Show Help')).toHaveFocus();
+      expect(screen.getByLabelText('Show Help').tabIndex).toBe(0);
+      expect(buttons[0].tabIndex).toBe(-1);
+
+      fireEvent.keyDown(toolbar, { key: 'ArrowLeft' });
+      expect(screen.getByLabelText('Numbered List')).toHaveFocus();
+
+      fireEvent.keyDown(toolbar, { key: 'Home' });
+      expect(screen.getByLabelText('Undo')).toHaveFocus();
+    });
   });
 });

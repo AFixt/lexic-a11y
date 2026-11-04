@@ -28,6 +28,7 @@ import {
   $setSelection,
   CAN_REDO_COMMAND,
   CAN_UNDO_COMMAND,
+  COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_LOW,
   FORMAT_TEXT_COMMAND,
@@ -38,14 +39,17 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { HEADING_FORMATS, TEXT_FORMATS, useAllowedFormats } from '../utils/allowed-formats';
 import { isSafeUrl, sanitizeUrl } from '../utils/sanitize-url';
 
 import { $createImageNode } from './ImageNode';
 import { useTooltip } from './Tooltip';
 
-export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
+export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload, allowedFormats }) {
   const [editor] = useLexicalComposerContext();
   const { t } = useTranslation();
+  const allowed = useAllowedFormats(allowedFormats);
+  const can = useCallback((format) => allowed.has(format), [allowed]);
   // Real tooltips (not title attributes) shown on hover/focus after a short delay
   const { getTriggerProps, tooltip } = useTooltip();
   // Modifier label for shortcut hints in tooltips, matching the platform
@@ -478,29 +482,31 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
           case 'k':
             // Open the same accessible dialog as the toolbar button
             // (replaces the old, far less accessible window.prompt)
-            e.preventDefault();
-            openLinkDialog();
+            if (can('link')) {
+              e.preventDefault();
+              openLinkDialog();
+            }
             break;
           case 'd':
             e.preventDefault();
             setShowDocs((prevState) => !prevState);
             break;
           case 'q':
-            if (e.shiftKey) {
+            if (e.shiftKey && can('blockquote')) {
               // Ctrl/Cmd + Shift + Q toggles blockquote
               e.preventDefault();
               toggleQuote();
             }
             break;
           case '8':
-            if (e.shiftKey) {
+            if (e.shiftKey && can('bulletList')) {
               // For * (Shift+8)
               e.preventDefault();
               editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
             }
             break;
           case '7':
-            if (e.shiftKey) {
+            if (e.shiftKey && can('numberedList')) {
               // For & (Shift+7)
               e.preventDefault();
               editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
@@ -508,15 +514,17 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
             break;
           case 'e':
             // Ctrl/Cmd + E toggles inline code; + Shift toggles a code block
-            e.preventDefault();
-            if (e.shiftKey) {
-              toggleCodeBlock();
-            } else {
-              editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
+            if (e.shiftKey ? can('codeBlock') : can('code')) {
+              e.preventDefault();
+              if (e.shiftKey) {
+                toggleCodeBlock();
+              } else {
+                editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
+              }
             }
             break;
           case 'x':
-            if (e.shiftKey) {
+            if (e.shiftKey && can('strikethrough')) {
               // Ctrl/Cmd + Shift + X toggles strikethrough
               e.preventDefault();
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
@@ -528,14 +536,14 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
             clearFormatting();
             break;
           case 'm':
-            if (e.shiftKey) {
+            if (e.shiftKey && can('image')) {
               // Ctrl/Cmd + Shift + M opens the insert-image dialog
               e.preventDefault();
               setShowImageDialog(true);
             }
             break;
           case 'l':
-            if (e.shiftKey) {
+            if (e.shiftKey && can('table')) {
               // Ctrl/Cmd + Shift + L opens the insert-table dialog
               e.preventDefault();
               setShowTableDialog(true);
@@ -545,7 +553,7 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
           case '_':
             // Ctrl/Cmd + Shift + - inserts a horizontal rule (Shift+- is '_'
             // on US layouts, so accept both keys)
-            if (e.shiftKey) {
+            if (e.shiftKey && can('horizontalRule')) {
               e.preventDefault();
               editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined);
             }
@@ -557,33 +565,10 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
 
       // Heading shortcuts with Ctrl/Cmd + Alt + [1-6]
       if (mod && e.altKey) {
-        switch (e.key) {
-          case '1':
-            e.preventDefault();
-            setHeading('h1');
-            break;
-          case '2':
-            e.preventDefault();
-            setHeading('h2');
-            break;
-          case '3':
-            e.preventDefault();
-            setHeading('h3');
-            break;
-          case '4':
-            e.preventDefault();
-            setHeading('h4');
-            break;
-          case '5':
-            e.preventDefault();
-            setHeading('h5');
-            break;
-          case '6':
-            e.preventDefault();
-            setHeading('h6');
-            break;
-          default:
-            break;
+        const tag = `h${e.key}`;
+        if (HEADING_FORMATS.includes(tag) && can(tag)) {
+          e.preventDefault();
+          setHeading(tag);
         }
       }
     };
@@ -592,6 +577,7 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [
     editor,
+    can,
     setShowDocs,
     t,
     setHeading,
@@ -600,6 +586,17 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
     toggleCodeBlock,
     clearFormatting,
   ]);
+
+  // Ctrl/Cmd+B, +I and +U are handled by Lexical's RichTextPlugin, not by the
+  // listener above, so a disallowed inline format is stopped at the command
+  // itself. Critical priority runs this before RichTextPlugin's own handler.
+  useEffect(() => {
+    return editor.registerCommand(
+      FORMAT_TEXT_COMMAND,
+      (format) => TEXT_FORMATS.includes(format) && !can(format),
+      COMMAND_PRIORITY_CRITICAL,
+    );
+  }, [editor, can]);
 
   // Register Escape key to close link dialog
   useEffect(() => {
@@ -1004,213 +1001,233 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
       </div>
 
       <div className="toolbar-group">
-        <button
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
-          aria-label={t('bold')}
-          {...getTriggerProps('bold', `${t('bold')} (${modKey}+B)`)}
-          className={isBold ? 'active' : ''}
-          aria-pressed={isBold}
-        >
-          <svg
-            className="icon-bold"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+        {can('bold') ? (
+          <button
+            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
+            aria-label={t('bold')}
+            {...getTriggerProps('bold', `${t('bold')} (${modKey}+B)`)}
+            className={isBold ? 'active' : ''}
+            aria-pressed={isBold}
           >
-            <path
-              d="M6 12H14C16.2091 12 18 10.2091 18 8C18 5.79086 16.2091 4 14 4H6V12Z"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M6 12H15C17.2091 12 19 13.7909 19 16C19 18.2091 17.2091 20 15 20H6V12Z"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
-          aria-label={t('italic')}
-          {...getTriggerProps('italic', `${t('italic')} (${modKey}+I)`)}
-          className={isItalic ? 'active' : ''}
-          aria-pressed={isItalic}
-        >
-          <svg
-            className="icon-italic"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+            <svg
+              className="icon-bold"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M6 12H14C16.2091 12 18 10.2091 18 8C18 5.79086 16.2091 4 14 4H6V12Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M6 12H15C17.2091 12 19 13.7909 19 16C19 18.2091 17.2091 20 15 20H6V12Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+        {can('italic') ? (
+          <button
+            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
+            aria-label={t('italic')}
+            {...getTriggerProps('italic', `${t('italic')} (${modKey}+I)`)}
+            className={isItalic ? 'active' : ''}
+            aria-pressed={isItalic}
           >
-            <path
-              d="M19 4H10"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M14 20H5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M14.5 4L9.5 20"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
-          aria-label={t('underline')}
-          {...getTriggerProps('underline', `${t('underline')} (${modKey}+U)`)}
-          className={isUnderline ? 'active' : ''}
-          aria-pressed={isUnderline}
-        >
-          <svg
-            className="icon-underline"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+            <svg
+              className="icon-italic"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M19 4H10"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M14 20H5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M14.5 4L9.5 20"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+        {can('underline') ? (
+          <button
+            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
+            aria-label={t('underline')}
+            {...getTriggerProps('underline', `${t('underline')} (${modKey}+U)`)}
+            className={isUnderline ? 'active' : ''}
+            aria-pressed={isUnderline}
           >
-            <path
-              d="M6 3V10C6 13.3137 8.68629 16 12 16C15.3137 16 18 13.3137 18 10V3"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M4 21H20"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}
-          aria-label={t('strikethrough')}
-          {...getTriggerProps('strikethrough', `${t('strikethrough')} (${modKey}+Shift+X)`)}
-          className={isStrikethrough ? 'active' : ''}
-          aria-pressed={isStrikethrough}
-        >
-          <svg
-            className="icon-strikethrough"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+            <svg
+              className="icon-underline"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M6 3V10C6 13.3137 8.68629 16 12 16C15.3137 16 18 13.3137 18 10V3"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M4 21H20"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+        {can('strikethrough') ? (
+          <button
+            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}
+            aria-label={t('strikethrough')}
+            {...getTriggerProps('strikethrough', `${t('strikethrough')} (${modKey}+Shift+X)`)}
+            className={isStrikethrough ? 'active' : ''}
+            aria-pressed={isStrikethrough}
           >
-            <path
-              d="M4 12H20"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M16 6C16 6 14.5 4 12 4C9.5 4 8 5.5 8 7.5C8 9.5 9 10 12 11"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M12 13C15.5 14 16 15 16 17C16 19.5 13.5 20.5 12 20.5C10 20.5 8 19 8 19"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
-          aria-label={t('inlineCode')}
-          {...getTriggerProps('inlineCode', `${t('inlineCode')} (${modKey}+E)`)}
-          className={isInlineCode ? 'active' : ''}
-          aria-pressed={isInlineCode}
-        >
-          <svg
-            className="icon-inline-code"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+            <svg
+              className="icon-strikethrough"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M4 12H20"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M16 6C16 6 14.5 4 12 4C9.5 4 8 5.5 8 7.5C8 9.5 9 10 12 11"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 13C15.5 14 16 15 16 17C16 19.5 13.5 20.5 12 20.5C10 20.5 8 19 8 19"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+        {can('code') ? (
+          <button
+            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
+            aria-label={t('inlineCode')}
+            {...getTriggerProps('inlineCode', `${t('inlineCode')} (${modKey}+E)`)}
+            className={isInlineCode ? 'active' : ''}
+            aria-pressed={isInlineCode}
           >
-            <path
-              d="M8 6L2 12L8 18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M16 6L22 12L16 18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={toggleCodeBlock}
-          aria-label={t('codeBlock')}
-          {...getTriggerProps('codeBlock', `${t('codeBlock')} (${modKey}+Shift+E)`)}
-          className={`code-block-button ${isCodeBlockActive ? 'active' : ''}`}
-          aria-pressed={isCodeBlockActive}
-        >
-          <svg
-            className="icon-code-block"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+            <svg
+              className="icon-inline-code"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M8 6L2 12L8 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M16 6L22 12L16 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+        {can('codeBlock') ? (
+          <button
+            onClick={toggleCodeBlock}
+            aria-label={t('codeBlock')}
+            {...getTriggerProps('codeBlock', `${t('codeBlock')} (${modKey}+Shift+E)`)}
+            className={`code-block-button ${isCodeBlockActive ? 'active' : ''}`}
+            aria-pressed={isCodeBlockActive}
           >
-            <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-            <path
-              d="M9 10L7 12L9 14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M15 10L17 12L15 14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+            <svg
+              className="icon-code-block"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="3"
+                y="4"
+                width="18"
+                height="16"
+                rx="2"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <path
+                d="M9 10L7 12L9 14"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M15 10L17 12L15 14"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
         <button
           onClick={clearFormatting}
           aria-label={t('clearFormatting')}
@@ -1244,301 +1261,349 @@ export function ToolbarPlugin({ showDocs, setShowDocs, onImageUpload }) {
         </button>
       </div>
 
-      <div className="toolbar-group">
-        <button
-          onClick={() => setHeading('h1')}
-          aria-label={t('heading1')}
-          {...getTriggerProps('heading1', `${t('heading1')} (${modKey}+Alt+1)`)}
-          className={`heading-button ${activeHeadingTag === 'h1' ? 'active' : ''}`}
-          aria-pressed={activeHeadingTag === 'h1' ? true : false}
-        >
-          H1
-        </button>
-        <button
-          onClick={() => setHeading('h2')}
-          aria-label={t('heading2')}
-          {...getTriggerProps('heading2', `${t('heading2')} (${modKey}+Alt+2)`)}
-          className={`heading-button ${activeHeadingTag === 'h2' ? 'active' : ''}`}
-          aria-pressed={activeHeadingTag === 'h2' ? true : false}
-        >
-          H2
-        </button>
-        <button
-          onClick={() => setHeading('h3')}
-          aria-label={t('heading3')}
-          {...getTriggerProps('heading3', `${t('heading3')} (${modKey}+Alt+3)`)}
-          className={`heading-button ${activeHeadingTag === 'h3' ? 'active' : ''}`}
-          aria-pressed={activeHeadingTag === 'h3' ? true : false}
-        >
-          H3
-        </button>
-        <button
-          onClick={() => setHeading('h4')}
-          aria-label={t('heading4')}
-          {...getTriggerProps('heading4', `${t('heading4')} (${modKey}+Alt+4)`)}
-          className={`heading-button ${activeHeadingTag === 'h4' ? 'active' : ''}`}
-          aria-pressed={activeHeadingTag === 'h4' ? true : false}
-        >
-          H4
-        </button>
-        <button
-          onClick={() => setHeading('h5')}
-          aria-label={t('heading5')}
-          {...getTriggerProps('heading5', `${t('heading5')} (${modKey}+Alt+5)`)}
-          className={`heading-button ${activeHeadingTag === 'h5' ? 'active' : ''}`}
-          aria-pressed={activeHeadingTag === 'h5' ? true : false}
-        >
-          H5
-        </button>
-        <button
-          onClick={() => setHeading('h6')}
-          aria-label={t('heading6')}
-          {...getTriggerProps('heading6', `${t('heading6')} (${modKey}+Alt+6)`)}
-          className={`heading-button ${activeHeadingTag === 'h6' ? 'active' : ''}`}
-          aria-pressed={activeHeadingTag === 'h6' ? true : false}
-        >
-          H6
-        </button>
-      </div>
+      {HEADING_FORMATS.some(can) ? (
+        <div className="toolbar-group">
+          {can('h1') ? (
+            <button
+              onClick={() => setHeading('h1')}
+              aria-label={t('heading1')}
+              {...getTriggerProps('heading1', `${t('heading1')} (${modKey}+Alt+1)`)}
+              className={`heading-button ${activeHeadingTag === 'h1' ? 'active' : ''}`}
+              aria-pressed={activeHeadingTag === 'h1' ? true : false}
+            >
+              H1
+            </button>
+          ) : null}
+          {can('h2') ? (
+            <button
+              onClick={() => setHeading('h2')}
+              aria-label={t('heading2')}
+              {...getTriggerProps('heading2', `${t('heading2')} (${modKey}+Alt+2)`)}
+              className={`heading-button ${activeHeadingTag === 'h2' ? 'active' : ''}`}
+              aria-pressed={activeHeadingTag === 'h2' ? true : false}
+            >
+              H2
+            </button>
+          ) : null}
+          {can('h3') ? (
+            <button
+              onClick={() => setHeading('h3')}
+              aria-label={t('heading3')}
+              {...getTriggerProps('heading3', `${t('heading3')} (${modKey}+Alt+3)`)}
+              className={`heading-button ${activeHeadingTag === 'h3' ? 'active' : ''}`}
+              aria-pressed={activeHeadingTag === 'h3' ? true : false}
+            >
+              H3
+            </button>
+          ) : null}
+          {can('h4') ? (
+            <button
+              onClick={() => setHeading('h4')}
+              aria-label={t('heading4')}
+              {...getTriggerProps('heading4', `${t('heading4')} (${modKey}+Alt+4)`)}
+              className={`heading-button ${activeHeadingTag === 'h4' ? 'active' : ''}`}
+              aria-pressed={activeHeadingTag === 'h4' ? true : false}
+            >
+              H4
+            </button>
+          ) : null}
+          {can('h5') ? (
+            <button
+              onClick={() => setHeading('h5')}
+              aria-label={t('heading5')}
+              {...getTriggerProps('heading5', `${t('heading5')} (${modKey}+Alt+5)`)}
+              className={`heading-button ${activeHeadingTag === 'h5' ? 'active' : ''}`}
+              aria-pressed={activeHeadingTag === 'h5' ? true : false}
+            >
+              H5
+            </button>
+          ) : null}
+          {can('h6') ? (
+            <button
+              onClick={() => setHeading('h6')}
+              aria-label={t('heading6')}
+              {...getTriggerProps('heading6', `${t('heading6')} (${modKey}+Alt+6)`)}
+              className={`heading-button ${activeHeadingTag === 'h6' ? 'active' : ''}`}
+              aria-pressed={activeHeadingTag === 'h6' ? true : false}
+            >
+              H6
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className="toolbar-group">
-        <button
-          onClick={toggleQuote}
-          aria-label={t('blockquote')}
-          {...getTriggerProps('blockquote', `${t('blockquote')} (${modKey}+Shift+Q)`)}
-          className={`quote-button ${isQuoteActive ? 'active' : ''}`}
-          aria-pressed={isQuoteActive}
-        >
-          <svg
-            className="icon-quote"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+      {can('blockquote') ? (
+        <div className="toolbar-group">
+          <button
+            onClick={toggleQuote}
+            aria-label={t('blockquote')}
+            {...getTriggerProps('blockquote', `${t('blockquote')} (${modKey}+Shift+Q)`)}
+            className={`quote-button ${isQuoteActive ? 'active' : ''}`}
+            aria-pressed={isQuoteActive}
           >
-            <path
-              d="M7 7H10V12C10 14 9 16 6 17M14 7H17V12C17 14 16 16 13 17"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      </div>
+            <svg
+              className="icon-quote"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M7 7H10V12C10 14 9 16 6 17M14 7H17V12C17 14 16 16 13 17"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      ) : null}
 
-      <div className="toolbar-group">
-        <button
-          className={`link-button ${isLinkActive ? 'active' : ''}`}
-          onClick={openLinkDialog}
-          aria-label={isLinkActive ? t('editLink') : t('insertLink')}
-          {...getTriggerProps(
-            'link',
-            `${isLinkActive ? t('editLink') : t('insertLink')} (${modKey}+K)`,
-          )}
-          aria-pressed={isLinkActive ? true : false}
-        >
-          <svg
-            className="icon-link"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M9 17H7C4.24 17 2 14.76 2 12C2 9.24 4.24 7 7 7H9"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <path
-              d="M15 17H17C19.76 17 22 14.76 22 12C22 9.24 19.76 7 17 7H15"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
-        <button
-          className="image-button"
-          onClick={() => setShowImageDialog(true)}
-          aria-label={t('insertImage')}
-          {...getTriggerProps('insertImage', `${t('insertImage')} (${modKey}+Shift+M)`)}
-        >
-          <svg
-            className="icon-image"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-            <circle cx="8.5" cy="9.5" r="1.5" fill="currentColor" />
-            <path
-              d="M21 15L16 10L5 20"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          className="table-button"
-          onClick={() => setShowTableDialog(true)}
-          aria-label={t('insertTable')}
-          {...getTriggerProps('insertTable', `${t('insertTable')} (${modKey}+Shift+L)`)}
-        >
-          <svg
-            className="icon-table"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect x="3" y="4" width="18" height="16" rx="1" stroke="currentColor" strokeWidth="2" />
-            <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
-            <path d="M9 10V20" stroke="currentColor" strokeWidth="2" />
-            <path d="M15 10V20" stroke="currentColor" strokeWidth="2" />
-          </svg>
-        </button>
-      </div>
+      {can('link') || can('image') || can('table') ? (
+        <div className="toolbar-group">
+          {can('link') ? (
+            <button
+              className={`link-button ${isLinkActive ? 'active' : ''}`}
+              onClick={openLinkDialog}
+              aria-label={isLinkActive ? t('editLink') : t('insertLink')}
+              {...getTriggerProps(
+                'link',
+                `${isLinkActive ? t('editLink') : t('insertLink')} (${modKey}+K)`,
+              )}
+              aria-pressed={isLinkActive ? true : false}
+            >
+              <svg
+                className="icon-link"
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M9 17H7C4.24 17 2 14.76 2 12C2 9.24 4.24 7 7 7H9"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M15 17H17C19.76 17 22 14.76 22 12C22 9.24 19.76 7 17 7H15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          ) : null}
+          {can('image') ? (
+            <button
+              className="image-button"
+              onClick={() => setShowImageDialog(true)}
+              aria-label={t('insertImage')}
+              {...getTriggerProps('insertImage', `${t('insertImage')} (${modKey}+Shift+M)`)}
+            >
+              <svg
+                className="icon-image"
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="3"
+                  y="4"
+                  width="18"
+                  height="16"
+                  rx="2"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <circle cx="8.5" cy="9.5" r="1.5" fill="currentColor" />
+                <path
+                  d="M21 15L16 10L5 20"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+          {can('table') ? (
+            <button
+              className="table-button"
+              onClick={() => setShowTableDialog(true)}
+              aria-label={t('insertTable')}
+              {...getTriggerProps('insertTable', `${t('insertTable')} (${modKey}+Shift+L)`)}
+            >
+              <svg
+                className="icon-table"
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="3"
+                  y="4"
+                  width="18"
+                  height="16"
+                  rx="1"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
+                <path d="M9 10V20" stroke="currentColor" strokeWidth="2" />
+                <path d="M15 10V20" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className="toolbar-group">
-        <button
-          onClick={() => toggleList('bullet')}
-          aria-label={t('bulletList')}
-          {...getTriggerProps('bulletList', `${t('bulletList')} (${modKey}+Shift+8)`)}
-          className={isUnorderedListActive ? 'active' : ''}
-          aria-pressed={isUnorderedListActive ? true : false}
-        >
-          <svg
-            className="icon-list-ul"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="4" cy="6" r="2" fill="currentColor" />
-            <line
-              x1="9"
-              y1="6"
-              x2="20"
-              y2="6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="4" cy="12" r="2" fill="currentColor" />
-            <line
-              x1="9"
-              y1="12"
-              x2="20"
-              y2="12"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="4" cy="18" r="2" fill="currentColor" />
-            <line
-              x1="9"
-              y1="18"
-              x2="20"
-              y2="18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={() => toggleList('number')}
-          aria-label={t('numberedList')}
-          {...getTriggerProps('numberedList', `${t('numberedList')} (${modKey}+Shift+7)`)}
-          className={isOrderedListActive ? 'active' : ''}
-          aria-pressed={isOrderedListActive ? true : false}
-        >
-          <svg
-            className="icon-list-ol"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M3 6H4V7H3V6Z" fill="currentColor" />
-            <path
-              d="M3 10V9H5V6H3V5H5V4H4V3H3V4H2V6H3V7H2V9H3V10H2V12H5V10H3Z"
-              fill="currentColor"
-            />
-            <path d="M3 18H4V15H2V16H3V18Z" fill="currentColor" />
-            <line
-              x1="9"
-              y1="6"
-              x2="20"
-              y2="6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <line
-              x1="9"
-              y1="12"
-              x2="20"
-              y2="12"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <line
-              x1="9"
-              y1="18"
-              x2="20"
-              y2="18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      </div>
+      {can('bulletList') || can('numberedList') ? (
+        <div className="toolbar-group">
+          {can('bulletList') ? (
+            <button
+              onClick={() => toggleList('bullet')}
+              aria-label={t('bulletList')}
+              {...getTriggerProps('bulletList', `${t('bulletList')} (${modKey}+Shift+8)`)}
+              className={isUnorderedListActive ? 'active' : ''}
+              aria-pressed={isUnorderedListActive ? true : false}
+            >
+              <svg
+                className="icon-list-ul"
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle cx="4" cy="6" r="2" fill="currentColor" />
+                <line
+                  x1="9"
+                  y1="6"
+                  x2="20"
+                  y2="6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <circle cx="4" cy="12" r="2" fill="currentColor" />
+                <line
+                  x1="9"
+                  y1="12"
+                  x2="20"
+                  y2="12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <circle cx="4" cy="18" r="2" fill="currentColor" />
+                <line
+                  x1="9"
+                  y1="18"
+                  x2="20"
+                  y2="18"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+          {can('numberedList') ? (
+            <button
+              onClick={() => toggleList('number')}
+              aria-label={t('numberedList')}
+              {...getTriggerProps('numberedList', `${t('numberedList')} (${modKey}+Shift+7)`)}
+              className={isOrderedListActive ? 'active' : ''}
+              aria-pressed={isOrderedListActive ? true : false}
+            >
+              <svg
+                className="icon-list-ol"
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M3 6H4V7H3V6Z" fill="currentColor" />
+                <path
+                  d="M3 10V9H5V6H3V5H5V4H4V3H3V4H2V6H3V7H2V9H3V10H2V12H5V10H3Z"
+                  fill="currentColor"
+                />
+                <path d="M3 18H4V15H2V16H3V18Z" fill="currentColor" />
+                <line
+                  x1="9"
+                  y1="6"
+                  x2="20"
+                  y2="6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="9"
+                  y1="12"
+                  x2="20"
+                  y2="12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="9"
+                  y1="18"
+                  x2="20"
+                  y2="18"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className="toolbar-group">
-        <button
-          type="button"
-          onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
-          aria-label={t('insertHorizontalRule')}
-          {...getTriggerProps(
-            'insertHorizontalRule',
-            `${t('insertHorizontalRule')} (${modKey}+Shift+-)`,
-          )}
-          className="horizontal-rule-button"
-        >
-          <svg
-            className="icon-horizontal-rule"
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+      {can('horizontalRule') ? (
+        <div className="toolbar-group">
+          <button
+            type="button"
+            onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
+            aria-label={t('insertHorizontalRule')}
+            {...getTriggerProps(
+              'insertHorizontalRule',
+              `${t('insertHorizontalRule')} (${modKey}+Shift+-)`,
+            )}
+            className="horizontal-rule-button"
           >
-            <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
-      </div>
+            <svg
+              className="icon-horizontal-rule"
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      ) : null}
 
       <div className="toolbar-group toolbar-right">
         <button
