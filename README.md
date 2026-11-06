@@ -218,6 +218,49 @@ export default function App() {
 | `initialValue`         | `string`                                                       | —        | Optional trusted HTML used to seed the editor once, on mount (e.g. a saved draft or template). Images, tables, and code blocks are preserved. Later changes to this prop are ignored so user edits are never clobbered. |
 | `showOutline`          | `boolean`                                                      | `false`  | Whether to render the Document Outline panel below the editing surface. Off by default, which suits short-form embedded fields (a reply box, a ticket description). Pass `true` for long-form authoring.                |
 | `accessibilityChecker` | `(request: { html: string }) => Promise<AccessibilityIssue[]>` | —        | Optional. Adds an Accessibility check panel that sends the content to this function and shows the issues in context. See [Accessibility checking](#accessibility-checking-with-afixt-engine).                           |
+| `allowedFormats`       | `EditorFormat[]`                                               | all      | Optional. Limits the toolbar, keyboard shortcuts and Markdown shortcuts to these formats. Omit it for every format. See [Limiting the formatting](#limiting-the-formatting).                                            |
+
+#### Limiting the formatting
+
+By default the toolbar offers every format. A short-form field often should not:
+a description that is stored as plain paragraphs has no use for images, tables
+or headings. Pass `allowedFormats` to offer only some:
+
+```jsx
+<Editor
+  onContentChange={setContent}
+  allowedFormats={[
+    'bold',
+    'italic',
+    'underline',
+    'strikethrough',
+    'bulletList',
+    'numberedList',
+    'link',
+  ]}
+/>
+```
+
+The names are `bold`, `italic`, `underline`, `strikethrough`, `code` (inline
+code), `codeBlock`, `h1` to `h6`, `blockquote`, `link`, `image`, `table`,
+`bulletList`, `numberedList` and `horizontalRule`. Unknown names are ignored.
+
+- **The toolbar** renders only the allowed controls. Undo, redo, clear
+  formatting and help are not formats and always render. The toolbar keeps a
+  single tab stop, and the arrow keys, Home and End move across the remaining
+  controls.
+- **Keyboard shortcuts** for a disallowed format do nothing, including
+  <kbd>Ctrl</kbd>+<kbd>B</kbd>/<kbd>I</kbd>/<kbd>U</kbd>, and the editor leaves
+  the key event to the browser.
+- **Markdown auto-formatting** is limited the same way: with headings
+  disallowed, typing `#` and a space stays plain text. Allowing only some levels
+  (say `['h2', 'h3']`) limits both the heading buttons and the `#` shortcuts to
+  those levels.
+- **The shortcut help** lists only what is allowed.
+
+`allowedFormats` limits what an author can apply, not what the document can
+hold. Pasted content and `initialValue` are not filtered, so sanitize the output
+wherever the restriction matters.
 
 #### Accessibility checking with afixt-engine
 

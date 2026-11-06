@@ -12,6 +12,31 @@ import type { Dispatch, ReactElement, SetStateAction } from 'react';
 /** Serialization format passed to `onContentChange`. */
 export type OutputFormat = 'html' | 'markdown';
 
+/**
+ * A formatting control the editor can offer, for {@link EditorProps.allowedFormats}.
+ * `code` is inline code; `codeBlock` is a fenced block.
+ */
+export type EditorFormat =
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'strikethrough'
+  | 'code'
+  | 'codeBlock'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'h4'
+  | 'h5'
+  | 'h6'
+  | 'blockquote'
+  | 'link'
+  | 'image'
+  | 'table'
+  | 'bulletList'
+  | 'numberedList'
+  | 'horizontalRule';
+
 export interface EditorProps {
   /**
    * Called on every edit with the serialized document, in the format chosen by
@@ -64,6 +89,19 @@ export interface EditorProps {
    * `@afixt/lexic-a11y/dist/afixt-engine.js`. Omit it and no panel is rendered.
    */
   accessibilityChecker?: AccessibilityChecker;
+
+  /**
+   * The formatting the editor offers. When provided, only these controls appear
+   * in the toolbar, and only their keyboard and Markdown shortcuts work; for
+   * example `['bold', 'italic', 'bulletList', 'numberedList', 'link']` for a
+   * field limited to text, lists and links. Undo, redo, clear formatting and
+   * help are always available. Omit it for every format.
+   *
+   * This limits what an author can apply, not what the document can hold:
+   * content arriving through paste or `initialValue` is not filtered, so
+   * sanitize the output wherever the restriction matters.
+   */
+  allowedFormats?: readonly EditorFormat[];
 }
 
 /** What the editor sends to an {@link AccessibilityChecker}. */
@@ -127,6 +165,8 @@ export interface ToolbarPluginProps {
   setShowDocs: Dispatch<SetStateAction<boolean>>;
   /** See {@link EditorProps.onImageUpload}. */
   onImageUpload?: (file: File) => Promise<string>;
+  /** See {@link EditorProps.allowedFormats}. */
+  allowedFormats?: readonly EditorFormat[];
 }
 
 /**

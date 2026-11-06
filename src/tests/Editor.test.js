@@ -76,8 +76,14 @@ jest.mock('@lexical/react/LexicalHorizontalRulePlugin', () => ({
   HorizontalRulePlugin: () => <div data-testid="horizontal-rule-plugin" />,
 }));
 
+// Capture the transformers so tests can assert they follow allowedFormats
+const mockMarkdownShortcutCapture = {};
+
 jest.mock('@lexical/react/LexicalMarkdownShortcutPlugin', () => ({
-  MarkdownShortcutPlugin: () => <div data-testid="markdown-shortcut-plugin" />,
+  MarkdownShortcutPlugin: ({ transformers }) => {
+    mockMarkdownShortcutCapture.transformers = transformers;
+    return <div data-testid="markdown-shortcut-plugin" />;
+  },
 }));
 
 // Capture the OnChangePlugin onChange prop so tests can exercise the export path
@@ -140,15 +146,20 @@ jest.mock('../components/ImageNode', () => ({
   ImageNode: class ImageNode {},
 }));
 
-// Mock ToolbarPlugin to expose setShowDocs trigger
+// Mock ToolbarPlugin to expose setShowDocs trigger and capture allowedFormats
+const mockToolbarCapture = {};
+
 jest.mock('../components/ToolbarPlugin', () => ({
-  ToolbarPlugin: ({ setShowDocs }) => (
-    <div data-testid="toolbar-plugin">
-      <button data-testid="show-docs-button" onClick={() => setShowDocs(true)}>
-        Show Docs
-      </button>
-    </div>
-  ),
+  ToolbarPlugin: ({ setShowDocs, allowedFormats }) => {
+    mockToolbarCapture.allowedFormats = allowedFormats;
+    return (
+      <div data-testid="toolbar-plugin">
+        <button data-testid="show-docs-button" onClick={() => setShowDocs(true)}>
+          Show Docs
+        </button>
+      </div>
+    );
+  },
 }));
 
 const renderWithI18n = (component) => {
@@ -353,5 +364,99 @@ describe('Editor Component', () => {
     expect(mockOnContentChange).toHaveBeenCalledWith(
       '<pre><code>const x = 1;</code></pre><p>uses <code>inline</code> code</p>',
     );
+  });
+
+  describe('allowedFormats', () => {
+    const TEXT_LISTS_LINKS = [
+      'bold',
+      'italic',
+      'underline',
+      'strikethrough',
+      'bulletList',
+      'numberedList',
+      'link',
+    ];
+
+    const openDocs = async (allowedFormats) => {
+      const user = userEvent.setup();
+      renderWithI18n(<Editor onContentChange={jest.fn()} allowedFormats={allowedFormats} />);
+      await user.click(screen.getByTestId('show-docs-button'));
+      return screen.getByLabelText('Editor documentation');
+    };
+
+    it('passes the allowlist to the toolbar', () => {
+      renderWithI18n(<Editor onContentChange={jest.fn()} allowedFormats={TEXT_LISTS_LINKS} />);
+      expect(mockToolbarCapture.allowedFormats).toEqual(TEXT_LISTS_LINKS);
+    });
+
+    it('passes nothing to the toolbar when the prop is omitted', () => {
+      renderWithI18n(<Editor onContentChange={jest.fn()} />);
+      expect(mockToolbarCapture.allowedFormats).toBeUndefined();
+    });
+
+    it('narrows the Markdown shortcuts', () => {
+      renderWithI18n(<Editor onContentChange={jest.fn()} />);
+      const all = mockMarkdownShortcutCapture.transformers.length;
+
+      renderWithI18n(<Editor onContentChange={jest.fn()} allowedFormats={['link']} />);
+      expect(mockMarkdownShortcutCapture.transformers).toHaveLength(1);
+      expect(all).toBeGreaterThan(1);
+    });
+
+    it('documents every shortcut when the prop is omitted', async () => {
+      const docs = await openDocs(undefined);
+
+      expect(docs).toHaveTextContent('Heading 1 through 6');
+      expect(docs).toHaveTextContent('Insert image');
+      expect(docs).toHaveTextContent(
+        'Type these and they convert as you go: #–###### for headings, > for a blockquote, ' +
+          '- or * for a bullet list, 1. for a numbered list, **bold**, *italic*, ' +
+          '`code` for inline code, ``` for a code block, and [text](url) for links.',
+      );
+    });
+
+    it('documents only the allowed shortcuts', async () => {
+      const docs = await openDocs(TEXT_LISTS_LINKS);
+
+      expect(docs).toHaveTextContent('Bold');
+      expect(docs).toHaveTextContent('Bullet list');
+      expect(docs).toHaveTextContent('Insert or edit link');
+      expect(docs).toHaveTextContent('Clear formatting');
+      expect(docs).not.toHaveTextContent('Heading');
+      expect(docs).not.toHaveTextContent('Insert image');
+      expect(docs).not.toHaveTextContent('Insert table');
+      expect(docs).not.toHaveTextContent('Blockquote');
+      expect(docs).not.toHaveTextContent('Code block');
+      expect(docs).not.toHaveTextContent('Inline code');
+      expect(docs).toHaveTextContent(
+        'Type these and they convert as you go: - or * for a bullet list, ' +
+          '1. for a numbered list, **bold**, *italic*, and [text](url) for links.',
+      );
+    });
+
+    it('lists individual heading shortcuts for a subset of levels', async () => {
+      const docs = await openDocs(['h2', 'h3']);
+
+      expect(docs).toHaveTextContent('Heading 2');
+      expect(docs).toHaveTextContent('Heading 3');
+      expect(docs).not.toHaveTextContent('Heading 1');
+      expect(docs).toHaveTextContent('## or ### for headings.');
+    });
+
+    it('joins exactly two Markdown hints without a comma', async () => {
+      const docs = await openDocs(['bold', 'italic']);
+
+      expect(docs).toHaveTextContent(
+        'Type these and they convert as you go: **bold** and *italic*.',
+      );
+    });
+
+    it('drops the Markdown section when no format has a Markdown shortcut', async () => {
+      const docs = await openDocs(['underline']);
+
+      expect(docs).not.toHaveTextContent('Markdown auto-formatting');
+      expect(docs).not.toHaveTextContent('Blocks & lists');
+      expect(docs).not.toHaveTextContent('Insert or edit link');
+    });
   });
 });
