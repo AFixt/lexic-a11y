@@ -443,6 +443,14 @@ describe('Editor Component', () => {
       expect(docs).toHaveTextContent('## or ### for headings.');
     });
 
+    it('joins exactly two Markdown hints without a comma', async () => {
+      const docs = await openDocs(['bold', 'italic']);
+
+      expect(docs).toHaveTextContent(
+        'Type these and they convert as you go: **bold** and *italic*.',
+      );
+    });
+
     it('drops the Markdown section when no format has a Markdown shortcut', async () => {
       const docs = await openDocs(['underline']);
 

@@ -13,11 +13,13 @@ import {
   STRIKETHROUGH,
   UNORDERED_LIST,
 } from '@lexical/markdown';
+import { renderHook } from '@testing-library/react';
 
 import {
   EDITOR_FORMATS,
   markdownShortcutTransformers,
   resolveAllowedFormats,
+  useAllowedFormats,
 } from '../utils/allowed-formats';
 import { EDITOR_TRANSFORMERS } from '../utils/markdown-transformers';
 
@@ -32,6 +34,31 @@ describe('resolveAllowedFormats', () => {
 
   it('drops names it does not know', () => {
     expect(resolveAllowedFormats(['bold', 'sparkles', 'h7'])).toEqual(new Set(['bold']));
+  });
+});
+
+describe('useAllowedFormats', () => {
+  it('agrees with resolveAllowedFormats on a name containing a comma', () => {
+    const { result } = renderHook(() => useAllowedFormats(['bold,italic', 'link']));
+
+    expect(result.current).toEqual(resolveAllowedFormats(['bold,italic', 'link']));
+    expect(result.current).toEqual(new Set(['link']));
+  });
+
+  it('keeps the same Set for an equal array with a new identity', () => {
+    const { result, rerender } = renderHook(({ formats }) => useAllowedFormats(formats), {
+      initialProps: { formats: ['bold', 'link'] },
+    });
+    const first = result.current;
+
+    rerender({ formats: ['bold', 'link'] });
+    expect(result.current).toBe(first);
+  });
+
+  it('allows every format when the prop is omitted', () => {
+    const { result } = renderHook(() => useAllowedFormats(undefined));
+
+    expect(result.current).toEqual(new Set(EDITOR_FORMATS));
   });
 });
 

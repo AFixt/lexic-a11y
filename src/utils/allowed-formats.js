@@ -72,20 +72,48 @@ export function resolveAllowedFormats(allowedFormats) {
  * @returns {Set<string>} The format names the editor offers.
  */
 export function useAllowedFormats(allowedFormats) {
-  const key = Array.isArray(allowedFormats) ? allowedFormats.join(',') : null;
-  return useMemo(() => resolveAllowedFormats(key === null ? undefined : key.split(',')), [key]);
+  // JSON round-trips every entry, so a name containing a comma stays one name
+  const key = Array.isArray(allowedFormats) ? JSON.stringify(allowedFormats) : null;
+  return useMemo(() => resolveAllowedFormats(key === null ? undefined : JSON.parse(key)), [key]);
 }
 
 // One pattern per heading level, each matching exactly that many `#`s. The
 // capture group is what Lexical's HEADING transformer reads the level from.
-const HEADING_LEVEL_PATTERNS = {
-  h1: /^(#)\s/,
-  h2: /^(##)\s/,
-  h3: /^(###)\s/,
-  h4: /^(####)\s/,
-  h5: /^(#####)\s/,
-  h6: /^(######)\s/,
-};
+const HEADING_LEVEL_PATTERNS = new Map([
+  ['h1', /^(#)\s/],
+  ['h2', /^(##)\s/],
+  ['h3', /^(###)\s/],
+  ['h4', /^(####)\s/],
+  ['h5', /^(#####)\s/],
+  ['h6', /^(######)\s/],
+]);
+
+// The shortcuts after the headings, in EDITOR_TRANSFORMERS order. Each group
+// applies only when every format it names is allowed.
+const FORMAT_TRANSFORMERS = [
+  [['blockquote'], [QUOTE]],
+  [['bulletList'], [UNORDERED_LIST]],
+  [['numberedList'], [ORDERED_LIST]],
+  [
+    ['bold', 'italic'],
+    [BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE],
+  ],
+  [['bold'], [BOLD_STAR, BOLD_UNDERSCORE]],
+  [['code'], [INLINE_CODE]],
+  [['italic'], [ITALIC_STAR, ITALIC_UNDERSCORE]],
+  [['strikethrough'], [STRIKETHROUGH]],
+  [['link'], [LINK]],
+];
+
+function headingTransformers(allowed) {
+  const headings = HEADING_FORMATS.filter((format) => allowed.has(format));
+  if (headings.length === HEADING_FORMATS.length) {
+    return [HEADING];
+  }
+  // A subset gets one transformer per allowed level, so typing `#### ` does
+  // nothing when H4 is not allowed.
+  return headings.map((tag) => ({ ...HEADING, regExp: HEADING_LEVEL_PATTERNS.get(tag) }));
+}
 
 /**
  * Markdown auto-formatting transformers for the allowed formats. Only the
@@ -97,28 +125,12 @@ const HEADING_LEVEL_PATTERNS = {
  *   MarkdownShortcutPlugin.
  */
 export function markdownShortcutTransformers(allowed) {
-  const has = (format) => allowed.has(format);
-  const headings = HEADING_FORMATS.filter(has);
-
-  const transformers = [];
-  if (has('codeBlock')) transformers.push(CODE);
-  if (headings.length === HEADING_FORMATS.length) {
-    transformers.push(HEADING);
-  } else {
-    // A subset gets one transformer per allowed level, so typing `#### ` does
-    // nothing when H4 is not allowed.
-    transformers.push(
-      ...headings.map((tag) => ({ ...HEADING, regExp: HEADING_LEVEL_PATTERNS[tag] })),
-    );
+  const transformers = allowed.has('codeBlock') ? [CODE] : [];
+  transformers.push(...headingTransformers(allowed));
+  for (const [formats, group] of FORMAT_TRANSFORMERS) {
+    if (formats.every((format) => allowed.has(format))) {
+      transformers.push(...group);
+    }
   }
-  if (has('blockquote')) transformers.push(QUOTE);
-  if (has('bulletList')) transformers.push(UNORDERED_LIST);
-  if (has('numberedList')) transformers.push(ORDERED_LIST);
-  if (has('bold') && has('italic')) transformers.push(BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE);
-  if (has('bold')) transformers.push(BOLD_STAR, BOLD_UNDERSCORE);
-  if (has('code')) transformers.push(INLINE_CODE);
-  if (has('italic')) transformers.push(ITALIC_STAR, ITALIC_UNDERSCORE);
-  if (has('strikethrough')) transformers.push(STRIKETHROUGH);
-  if (has('link')) transformers.push(LINK);
   return transformers;
 }

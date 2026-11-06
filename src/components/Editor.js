@@ -150,6 +150,13 @@ function OutputFormatSync({ outputFormat, onContentChange }) {
   return null;
 }
 
+// What follows a hint in the Markdown auto-formatting sentence: a full stop
+// after the last, and no comma between just two ("A and B", not "A, and B").
+function hintSeparator(index, count) {
+  if (index === count - 1) return '.';
+  return count === 2 ? ' ' : ', ';
+}
+
 /**
  * Accessible rich-text editor.
  *
@@ -560,7 +567,7 @@ export default function Editor({
                       <Fragment key={hint.key}>
                         {index > 0 && index === markdownHints.length - 1 ? 'and ' : null}
                         {hint.content}
-                        {index === markdownHints.length - 1 ? '.' : ', '}
+                        {hintSeparator(index, markdownHints.length)}
                       </Fragment>
                     ))}
                   </p>
