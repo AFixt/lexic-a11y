@@ -86,9 +86,9 @@ jobs:
         id: check-ts
         run: |
           if [ -f "tsconfig.json" ]; then
-            echo "has_typescript=true" >> $GITHUB_OUTPUT
+            echo "has_typescript=true" >> "$GITHUB_OUTPUT"
           else
-            echo "has_typescript=false" >> $GITHUB_OUTPUT
+            echo "has_typescript=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run TypeScript compiler
@@ -117,9 +117,9 @@ jobs:
         id: check-tests
         run: |
           if npm run test --if-present 2>&1 | grep -q "Missing script"; then
-            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
           else
-            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run tests
@@ -165,6 +165,9 @@ jobs:
         # react ever returns to `dependencies`, this step fails with 2.
         run: |
           npm ls react --all 2>&1 | head -30
+          # The node -e program is single-quoted on purpose: its `${...}` is a
+          # JavaScript template literal that the shell must not expand.
+          # shellcheck disable=SC2016
           npm ls react --json --all 2>/dev/null | node -e '
             const data = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
             const found = new Set();

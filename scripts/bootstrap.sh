@@ -32,6 +32,9 @@ install_if_missing semgrep
 install_if_missing osv-scanner
 install_if_missing trufflehog
 install_if_missing lychee
+install_if_missing actionlint
+# actionlint checks `run:` scripts only when shellcheck is installed.
+install_if_missing shellcheck
 
 echo ""
 echo "Installing npm dependencies..."
