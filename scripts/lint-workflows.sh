@@ -3,8 +3,7 @@
 #
 # One source of truth for the check pr-check.yml's `validate-workflows` job
 # runs, so it can be run before pushing (issue #171). The logic used to live
-# only inline in the workflow, and the Actions budget does not cover CI checks,
-# so a check that exists only in CI is a check that does not run.
+# only inline in the workflow, where nothing could run it locally.
 #
 # - With `actionlint` on PATH (scripts/bootstrap.sh installs it) the files are
 #   linted by actionlint, which validates the workflow schema, expressions and,
