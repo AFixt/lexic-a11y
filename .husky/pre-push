@@ -1,5 +1,11 @@
 npm run check
 
+if command -v actionlint >/dev/null 2>&1; then
+  npm run lint:workflows
+else
+  echo "warning: actionlint not installed — skipping workflow lint. Install with 'brew install actionlint'."
+fi
+
 if command -v lychee >/dev/null 2>&1; then
   # Non-blocking: report broken Markdown links but never block the push.
   # External link rot and rate-limit backoffs are outside the repo's control.

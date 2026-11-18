@@ -121,8 +121,9 @@ jump to the first and last control.
   (#109).
 - npm v10+ (enforced via `engine-strict=true` in `.npmrc`)
 - React (v16.8+, v17.0.0+, or v18.0.0+ for Hooks support)
-- Homebrew (macOS/Linux) — used by the bootstrap script to install security
-  binaries (`trufflehog`, `osv-scanner`, `semgrep`, `lychee`)
+- Homebrew (macOS/Linux) — used by the bootstrap script to install security and
+  lint binaries (`trufflehog`, `osv-scanner`, `semgrep`, `lychee`, `actionlint`,
+  `shellcheck`)
 
 ### Steps
 
@@ -604,6 +605,7 @@ We welcome contributions from the community! If you'd like to contribute:
 | `npm run dupes`                | Run jscpd duplication check                         |
 | `npm run knip`                 | Find unused files, exports, and dependencies        |
 | `npm run size`                 | Enforce `size-limit` budgets                        |
+| `npm run lint:workflows`       | Lint workflows (actionlint, else YAML parse)        |
 | `npm run links`                | Check markdown links with `lychee`                  |
 | `npm run security`             | Run npm audit + OSV + Semgrep + staged secret scan  |
 | `npm run license:check`        | Verify production dependency licenses               |

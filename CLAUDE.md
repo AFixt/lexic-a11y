@@ -12,7 +12,8 @@ code in this repository.
 ## Commands
 
 - Install: `npm install` (run `bash scripts/bootstrap.sh` first on a fresh clone
-  — it installs trufflehog/osv-scanner/semgrep/lychee via Homebrew).
+  — it installs trufflehog/osv-scanner/semgrep/lychee/actionlint/shellcheck via
+  Homebrew).
 - Start dev server: `npm start`
 - Build package: `npm run build`
 - Analyze bundle: `npm run build:analyze` (writes `reports/bundle-stats.html`)
@@ -22,10 +23,13 @@ code in this repository.
   — it mounts the real `dist/` ESM and CJS artifacts in jsdom, which the source
   suite cannot do)
 - Lint code: `npm run lint` (JS), `npm run lint:css`, `npm run lint:md`
+- Lint workflows: `npm run lint:workflows` (`scripts/lint-workflows.sh`:
+  actionlint, or a YAML-parse fallback without it). `pr-check.yml` calls the
+  same script, so the check runs locally before a push.
 - Format: `npm run format`
 - Check bundle size: `npm run size`
-- Full local gate: `npm run check:all` (runs check + test + build + dupes +
-  size + license + audit + secrets)
+- Full local gate: `npm run check:all` (runs check + workflow lint + test +
+  build + dupes + size + license + audit + secrets)
 
 ## Tooling
 
@@ -45,8 +49,8 @@ code in this repository.
 - Stylelint a11y rules are set to `severity: warning` for the same reason as
   ESLint.
 - Husky hooks: `pre-commit` (lint-staged + trufflehog), `commit-msg`
-  (commitlint), `pre-push` (`npm run check`), `post-merge` (audit on lockfile
-  change).
+  (commitlint), `pre-push` (`npm run check`, plus `npm run lint:workflows` when
+  actionlint is installed), `post-merge` (audit on lockfile change).
 
 ## Git Workflow
 

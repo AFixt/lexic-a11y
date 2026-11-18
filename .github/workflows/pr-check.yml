@@ -16,36 +16,9 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Validate workflow syntax
-        run: |
-          echo "Validating GitHub Actions workflow files..."
-          errors=0
-
-          for f in .github/workflows/*.yml .github/workflows/*.yaml; do
-            [ -f "$f" ] || continue
-            echo "Checking $f..."
-
-            # Basic YAML syntax check
-            if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
-              echo "ERROR: Invalid YAML in $f"
-              errors=$((errors + 1))
-            fi
-
-            # Check for required 'on' and 'jobs' keys
-            if ! grep -q '^on:' "$f" && ! grep -q "^'on':" "$f" && ! grep -q '^"on":' "$f"; then
-              echo "WARNING: Missing 'on' trigger in $f"
-            fi
-
-            if ! grep -q '^jobs:' "$f"; then
-              echo "WARNING: Missing 'jobs' section in $f"
-            fi
-          done
-
-          if [ $errors -gt 0 ]; then
-            echo "Found $errors workflow file(s) with errors"
-            exit 1
-          fi
-
-          echo "All workflow files are valid"
+        # One source of truth with `npm run lint:workflows`. The runner has no
+        # actionlint, so the script takes its YAML-parse path here.
+        run: bash scripts/lint-workflows.sh
 
   ci-check:
     name: CI Readiness Check
@@ -58,11 +31,11 @@ jobs:
         id: detect
         run: |
           if [ -f "package.json" ]; then
-            echo "type=node" >> $GITHUB_OUTPUT
+            echo "type=node" >> "$GITHUB_OUTPUT"
           elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
-            echo "type=python" >> $GITHUB_OUTPUT
+            echo "type=python" >> "$GITHUB_OUTPUT"
           else
-            echo "type=other" >> $GITHUB_OUTPUT
+            echo "type=other" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup Node.js
